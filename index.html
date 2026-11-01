@@ -879,11 +879,24 @@
     setTimeout(()=>{ if(answered) newQuestion(); }, 950);
   }
   // ── 手寫認字：本地筆順比對（KanjiVG 模板 + DTW）──────────
-  let TPL = null, TPL_N = 16;
-  const tplReady = fetch('kana-templates.json?v=4')
+  let TPL = null, TPL_N = 16, TPL_SQ = null, lastUnsure = false;
+  // 逐軸壓縮版本：手寫字長闊比例同模板唔同（寫得扁／寫得窄）時照樣對得上
+  function squashSet(set){
+    const out = {};
+    Object.keys(set).forEach(k=>{
+      const flat = set[k].flat();
+      let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+      flat.forEach(p=>{ if(p[0]<minX)minX=p[0]; if(p[0]>maxX)maxX=p[0]; if(p[1]<minY)minY=p[1]; if(p[1]>maxY)maxY=p[1]; });
+      const w=Math.max(maxX-minX,1e-6), h=Math.max(maxY-minY,1e-6);
+      const cx=(minX+maxX)/2, cy=(minY+maxY)/2;
+      out[k] = set[k].map(s=>s.map(([x,y])=>[(x-cx)/w, (y-cy)/h]));
+    });
+    return out;
+  }
+  const tplReady = fetch('kana-templates.json?v=5')
     .then(r=>r.json())
-    .then(j=>{ TPL = j.tpl; TPL_N = j.n || 16; })
-    .catch(()=>{ TPL = null; });
+    .then(j=>{ TPL = j.tpl; TPL_N = j.n || 16; TPL_SQ = squashSet(TPL); })
+    .catch(()=>{ TPL = null; TPL_SQ = null; });
 
   function clearCands(msg){
     candsEl.innerHTML = msg ? '<span class="hint">'+msg+'</span>' : '';
@@ -964,19 +977,36 @@
     const cx = (minX+maxX)/2, cy = (minY+maxY)/2;
     return strokes.map(s=>s.map(([x,y])=>[(x-cx)/side, (y-cy)/side]));
   }
+  // 逐軸壓縮（手寫字比例同模板唔同都用得）
+  function normalizeInkSquash(){
+    const flat = strokes.flat();
+    let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+    flat.forEach(p=>{
+      if(p[0]<minX) minX=p[0]; if(p[0]>maxX) maxX=p[0];
+      if(p[1]<minY) minY=p[1]; if(p[1]>maxY) maxY=p[1];
+    });
+    const w = Math.max(maxX-minX, 1), h = Math.max(maxY-minY, 1);
+    const cx = (minX+maxX)/2, cy = (minY+maxY)/2;
+    return strokes.map(s=>s.map(([x,y])=>[(x-cx)/w, (y-cy)/h]));
+  }
   function localRank(){
     if(!TPL) return [];
     const un = normalizeInk();
+    const unS = TPL_SQ ? normalizeInkSquash() : null;
     const scored = [];
     pool.forEach(o=>{
       const t = TPL[o.k];
-      if(t) scored.push([scoreKana(un, t), o.k]);
+      if(!t) return;
+      let d = scoreKana(un, t);
+      if(unS && TPL_SQ[o.k]) d = Math.min(d, scoreKana(unS, TPL_SQ[o.k]));
+      scored.push([d, o.k]);
     });
     scored.sort((a,b)=>a[0]-b[0]);
     if(!scored.length) return [];
     const best = scored[0][0];
-    if(best > 0.62) return [];                       // 差太遠 → 當認唔到
-    return scored.filter(x=>x[0] <= best*1.85 + 0.03).slice(0,6).map(x=>x[1]);
+    lastUnsure = best > 0.78;                        // 差距大 → 照出候選，但標明「唔確定」
+    const win = lastUnsure ? best*1.22 + 0.02 : best*1.6 + 0.03;
+    return scored.filter(x=>x[0] <= win).slice(0, lastUnsure ? 4 : 6).map(x=>x[1]);
   }
   async function recognize(){
     if(mode!=='write' || answered || !strokes.length) return;
@@ -994,7 +1024,7 @@
   function renderCands(){
     candsEl.innerHTML = '';
     const lbl = document.createElement('span');
-    lbl.className='lbl'; lbl.textContent='認到';
+    lbl.className='lbl'; lbl.textContent = lastUnsure ? '唔確定，揀返啱嘅' : '認到';
     candsEl.appendChild(lbl);
     cands.slice(0,8).forEach(ch=>{
       const b = document.createElement('button');
