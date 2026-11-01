@@ -189,6 +189,7 @@
   .marks button:disabled{opacity:.4; cursor:default;}
   #listenCheckBtn{padding:0 16px; min-height:42px; font-size:15px; flex:0 0 auto;}
   #listenCheckBtn:disabled{opacity:.45; box-shadow:none; cursor:default;}
+  #writeNextBtn{width:100%; margin-top:12px; min-height:46px;}
 
   /* write pad */
   .paper-wrap{width:100%; max-width:320px; margin-top:12px; border:1.5px solid var(--line); border-radius:16px; overflow:hidden; background-color:#fffefb;
@@ -362,6 +363,7 @@
           <button class="score ok" id="okBtn">✓ 啱</button>
           <button class="score no" id="noBtn">✗ 錯</button>
         </div>
+        <button class="btn-main" id="writeNextBtn" hidden>下一條 →</button>
         <div class="feedback" id="fbWrite"></div>
       </div>
 
@@ -530,6 +532,7 @@
   const writebarEl=document.querySelector('.writebar');
   const emptyPanel=$('emptyPanel'), listenType=$('listenType'), writeType=$('writeType');
   const emptyTitle=$('emptyTitle'), emptySub=$('emptySub'), emptyBtn=$('emptyBtn');
+  const writeNextBtn=$('writeNextBtn');
   const draftKana=$('draftKana'), marksEl=$('marks'), listenCheckBtn=$('listenCheckBtn');
   const wrongBadge=$('wrongBadge'), manageWrongBtn=$('manageWrongBtn');
   const sheetEl=$('wrongSheet'), sheetList=$('sheetList'), sheetAdd=$('sheetAdd'), addGrid=$('addGrid');
@@ -924,6 +927,7 @@
     candsEl.innerHTML='';
     revealEl.className='reveal'; revealEl.innerHTML='';
     scorebar.classList.remove('show');
+    writeNextBtn.hidden=true;
     writebarEl.style.display='';
     fitCanvas();
   }
@@ -952,7 +956,12 @@
     else { stats.wrong++; stats.streak=0; addWrong(current);
       showFeedback(fbWrite, false, '', '下一題再嚟 <span class="alt">· '+current.r[0]+'</span>', current.k); }
     updateStats();
-    setTimeout(()=>{ if(answered) newQuestion(); }, 950);
+    showWriteNext(ok);
+  }
+  function showWriteNext(ok){
+    writeNextBtn.hidden = false;
+    writeNextBtn.className = 'btn-main next' + (ok ? '' : ' err');
+    writeNextBtn.textContent = '下一條 →';
   }
   // ── 手寫認字：本地筆順比對（KanjiVG 模板 + DTW）──────────
   let TPL = null, TPL_N = 16, TPL_SQ = null, lastUnsure = false;
@@ -1122,7 +1131,8 @@
       updateStats();
       writebarEl.style.display='none';
       showAnswer();
-      setTimeout(()=>{ if(answered) newQuestion(); }, 1150);
+      showWriteNext(true);
+      scorebar.classList.remove('show');
       return;
     }
     // 認字唔準唔應該罰你 → 揭答案，交返你判
@@ -1215,6 +1225,7 @@
   });
   $('okBtn').addEventListener('click', ()=>scoreWrite(true));
   $('noBtn').addEventListener('click', ()=>scoreWrite(false));
+  writeNextBtn.addEventListener('click', ()=>{ if(answered) newQuestion(); });
   document.addEventListener('keydown', e=>{
     if(!sheetEl.hidden) return;               // 管理 sheet 開住時唔好觸發練習快捷鍵
     if(mode==='write' && e.key==='Enter' && !answered && !revealed){ e.preventDefault(); doReveal(); return; }
