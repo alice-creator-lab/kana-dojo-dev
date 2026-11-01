@@ -1,5 +1,5 @@
 /* Kana Dojo service worker — 離線可用 */
-const VERSION = 'kana-v20';
+const VERSION = 'kana-v21';
 const SHELL = [
   './',
   './index.html',
@@ -33,7 +33,7 @@ self.addEventListener('fetch', e => {
   // 頁面：先攞網絡（有新版本即刻見到），斷網先用 cache
   if (req.mode === 'navigate') {
     e.respondWith(
-      fetch(req)
+      fetch(req, {cache:'reload'})
         .then(res => {
           const copy = res.clone();
           caches.open(VERSION).then(c => c.put('./index.html', copy)).catch(() => {});

@@ -40,6 +40,7 @@
   .brand{display:flex; align-items:baseline; gap:10px;}
   .brand .jp{font-family:"Noto Serif JP",serif; font-weight:700; font-size:22px; letter-spacing:.06em;}
   .brand .sub{font-size:12px; color:var(--ink-soft); letter-spacing:.14em; text-transform:uppercase;}
+  .brand .ver{font-size:10px; color:#c3b9a6; letter-spacing:.08em; align-self:center;}
   .reset{border:1px solid var(--line); background:var(--card); color:var(--ink-soft);
     font-size:12.5px; padding:8px 13px; border-radius:999px; cursor:pointer; transition:.18s; font-family:inherit;}
   .reset:hover{color:var(--vermilion); border-color:#e2c5bc;}
@@ -225,6 +226,7 @@
   .cands .lbl{font-size:11px; color:#b6ac99; letter-spacing:.12em; margin-right:2px;}
   .cands .hint{font-size:12px; color:var(--ink-soft); text-align:center;}
   .cand{border:1.5px solid var(--line); background:#fffefb; border-radius:11px; min-width:46px; height:46px;
+    touch-action:manipulation;
     font-family:"Noto Serif JP",serif; font-size:21px; font-weight:700; color:var(--ink); cursor:pointer;
     padding:0 9px; transition:.13s;}
   .cand:hover{border-color:var(--indigo);}
@@ -298,7 +300,7 @@
 <body>
   <div class="app">
     <header>
-      <div class="brand"><span class="jp">五十音</span><span class="sub">Kana Dojo</span></div>
+      <div class="brand"><span class="jp">五十音</span><span class="sub">Kana Dojo</span><span class="ver" id="verTag">v21</span></div>
       <div class="hactions">
         <button class="reset" id="resetBtn" title="重設統計">↺ 重設</button>
         <button class="iconbtn" id="muteBtn" aria-pressed="false" title="靜音">
@@ -1154,7 +1156,9 @@
     cands.slice(0,8).forEach(ch=>{
       const b = document.createElement('button');
       b.className='cand'; b.textContent=ch;
-      b.addEventListener('click', ()=>pickCand(ch, b));
+      const fire = ()=>pickCand(ch, b);
+      b.addEventListener('pointerup', fire);
+      b.addEventListener('click', fire);
       candsEl.appendChild(b);
     });
   }
@@ -1336,7 +1340,7 @@
         '<button class="wtick" data-act="tick" aria-pressed="'+(on?'true':'false')+'">✓</button>'+
         '<span class="wkana">'+o.k+'</span>'+
         '<span class="wrom">'+o.r.join(' / ')+'</span>'+
-        '<span class="wtag">'+typeName(o.type)+'</span>'+
+        '<span class="wtag">'+typeName(o.type)+(EXTRA_LABEL[o.cls]?' · '+EXTRA_LABEL[o.cls]:'')+'</span>'+
         '<button class="wdel" data-act="del" title="刪除">✕</button>';
       sheetList.appendChild(row);
     });
@@ -1505,8 +1509,19 @@
   // ── Service Worker（網頁版離線用；app 內建資源時自動略過）─────
   const isNativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
   if('serviceWorker' in navigator && location.protocol.startsWith('http') && !isNativeApp){
-    window.addEventListener('load', ()=>{
-      navigator.serviceWorker.register('sw.js').catch(()=>{});
+    window.addEventListener('load', async ()=>{
+      const had = !!navigator.serviceWorker.controller;
+      try{
+        const reg = await navigator.serviceWorker.register('sw.js', {updateViaCache:'none'});
+        reg.update().catch(()=>{});
+        if(had){
+          navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+            if(location.__reloaded) return;
+            location.__reloaded = true;
+            location.reload();          // 有新版本接手 → 即時換新版
+          });
+        }
+      }catch(e){}
     });
   }
 })();
