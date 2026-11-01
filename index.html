@@ -59,6 +59,11 @@
   .chart-close{border:1px solid var(--line); background:var(--card); color:var(--ink-soft); width:30px; height:30px;
     border-radius:999px; cursor:pointer; font-size:14px; line-height:1;}
   .chart-close:hover{color:var(--vermilion); border-color:#e2c5bc;}
+  .chart-tools{padding:9px 14px; display:flex; justify-content:center; border-bottom:1px solid var(--line);}
+  .chart-seg{display:flex; gap:5px; background:#f4eee2; border:1px solid var(--line); border-radius:999px; padding:3px;}
+  .chart-seg button{border:0; background:transparent; font-family:inherit; font-size:12px; letter-spacing:.04em;
+    padding:6px 15px; border-radius:999px; color:var(--ink-soft); cursor:pointer; transition:.15s;}
+  .chart-seg button.active{background:var(--card); color:var(--ink); font-weight:700; box-shadow:0 1px 4px rgba(60,48,28,.12);}
   .chart-body{overflow:auto; padding:12px 14px 18px; -webkit-overflow-scrolling:touch;}
   .chart-sec{margin-top:14px;}
   .chart-sec:first-child{margin-top:2px;}
@@ -330,7 +335,7 @@
 <body>
   <div class="app">
     <header>
-      <div class="brand"><span class="jp">五十音</span><span class="sub">Kana Dojo</span><span class="ver" id="verTag">v22</span></div>
+      <div class="brand"><span class="jp">五十音</span><span class="sub">Kana Dojo</span><span class="ver" id="verTag">v23</span></div>
       <div class="hactions">
         <button class="iconbtn" id="chartBtn" title="假名表（溫習用）">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg>
@@ -487,9 +492,15 @@
     <div class="chart-head">
       <div>
         <h2>五十音表</h2>
-        <div class="sub">上：ひらがな　下：カタカナ　撳字聽發音</div>
+        <div class="sub">撳字聽發音</div>
       </div>
       <button class="chart-close" id="chartClose" aria-label="閂">✕</button>
+    </div>
+    <div class="chart-tools">
+      <div class="chart-seg" id="chartSeg">
+        <button type="button" data-script="hira" class="active">平假名</button>
+        <button type="button" data-script="kata">片假名</button>
+      </div>
     </div>
     <div class="chart-body" id="chartBody"></div>
   </div>
@@ -1577,7 +1588,8 @@
     if(!rom) return '<span class="kcell blank"></span>';
     const k = BY_ROMAJI[rom];
     if(!k) return '<span class="kcell blank"></span>';
-    return '<button class="kcell" data-k="'+k+'" type="button"><b>'+k+'</b><i>'+toKata(k)+'</i><span>'+rom+'</span></button>';
+    const glyph = chartScript==='kata' ? toKata(k) : k;
+    return '<button class="kcell" data-k="'+k+'" type="button"><b>'+glyph+'</b><span>'+rom+'</span></button>';
   }
   function chartSection(title, rows, cols){
     let html = '<div class="chart-sec"><h3>'+title+'</h3><div class="kgrid c'+cols+'">';
@@ -1585,6 +1597,20 @@
     html += '</div></div>';
     return html;
   }
+  let chartScript = localStorage.getItem('kanaChartScript') === 'kata' ? 'kata' : 'hira';
+  const chartSeg = $('chartSeg');
+  function applyChartScript(){
+    [...chartSeg.children].forEach(b=>b.classList.toggle('active', b.dataset.script===chartScript));
+    chartBody.querySelectorAll('.kcell[data-k]').forEach(c=>{
+      c.querySelector('b').textContent = chartScript==='kata' ? toKata(c.dataset.k) : c.dataset.k;
+    });
+  }
+  chartSeg.addEventListener('click', e=>{
+    const b = e.target.closest('button[data-script]'); if(!b) return;
+    chartScript = b.dataset.script;
+    try{ localStorage.setItem('kanaChartScript', chartScript); }catch(_){}
+    applyChartScript();
+  });
   let chartBuilt = false;
   function buildChart(){
     if(chartBuilt) return;
@@ -1597,6 +1623,7 @@
   }
   function openChart(){
     buildChart();
+    applyChartScript();
     chartEl.hidden = false;
     document.body.style.overflow = 'hidden';
   }
