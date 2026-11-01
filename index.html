@@ -43,6 +43,7 @@
   .reset{border:1px solid var(--line); background:var(--card); color:var(--ink-soft);
     font-size:12.5px; padding:8px 13px; border-radius:999px; cursor:pointer; transition:.18s; font-family:inherit;}
   .reset:hover{color:var(--vermilion); border-color:#e2c5bc;}
+  .hactions{display:flex; align-items:center; gap:8px;}
 
   .mode{display:flex; background:var(--indigo); border-radius:15px; padding:5px; gap:5px;}
   .mode button{flex:1; border:0; background:transparent; color:#c7d0e8; font-family:inherit;
@@ -263,10 +264,9 @@
   .vbtn.active{background:var(--indigo); border-color:var(--indigo); color:#fff; font-weight:700;}
 
   /* 音量／靜音 */
-  .volrow{gap:10px; align-items:center;}
-  .iconbtn{display:grid; place-items:center; width:34px; height:30px; padding:0; border:1px solid var(--line);
-    background:var(--card); border-radius:9px; color:var(--indigo); cursor:pointer; transition:.15s; flex:0 0 auto;}
-  .iconbtn:hover{border-color:var(--indigo);}
+  .iconbtn{display:grid; place-items:center; width:36px; height:36px; padding:0; border:1px solid var(--line);
+    background:var(--card); border-radius:999px; color:var(--ink-soft); cursor:pointer; transition:.15s; flex:0 0 auto;}
+  .iconbtn:hover{color:var(--indigo); border-color:var(--indigo);}
   .iconbtn svg{width:17px; height:17px; display:block;}
   .iconbtn .ico-off{display:none;}
   .iconbtn.muted{color:var(--red); border-color:var(--red);}
@@ -299,7 +299,13 @@
   <div class="app">
     <header>
       <div class="brand"><span class="jp">五十音</span><span class="sub">Kana Dojo</span></div>
-      <button class="reset" id="resetBtn" title="重設統計">↺ 重設</button>
+      <div class="hactions">
+        <button class="reset" id="resetBtn" title="重設統計">↺ 重設</button>
+        <button class="iconbtn" id="muteBtn" aria-pressed="false" title="靜音">
+          <svg class="ico-on" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4.03v8.05A4.5 4.5 0 0 0 16.5 12zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+          <svg class="ico-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3z" fill="currentColor" stroke="none"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>
+        </button>
+      </div>
     </header>
 
     <div class="mode" id="modeSeg">
@@ -330,14 +336,6 @@
       <button class="vbtn" data-extra="daku" title="が ざ だ ば 等">濁音</button>
       <button class="vbtn" data-extra="hand" title="ぱ ぴ ぷ ぺ ぽ">半濁音</button>
       <button class="vbtn" data-extra="youon" title="きゃ しゃ ちゃ 等">拗音</button>
-    </div>
-
-    <div class="voicerow volrow">
-      <span class="vl">出聲</span>
-      <button class="iconbtn" id="muteBtn" aria-pressed="false" title="靜音">
-        <svg class="ico-on" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4.03v8.05A4.5 4.5 0 0 0 16.5 12zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
-        <svg class="ico-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3z" fill="currentColor" stroke="none"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>
-      </button>
     </div>
 
     <div class="card">
@@ -1436,8 +1434,11 @@
     muted = !muted;
     try{ localStorage.setItem('kanaMute', muted?'1':'0'); }catch(e){}
     applyMute();
-    if(muted){ try{ player.pause(); }catch(e){} }
-    else if(current && mode!=='read') speak(current.k);
+    if(muted){
+      try{ player.pause(); }catch(e){}
+      try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){}
+      document.querySelectorAll('.playing').forEach(b=>b.classList.remove('playing'));
+    }else if(current && mode!=='read'){ speak(current.k); }
   });
 
   const romajiBtn = $('romajiBtn');
