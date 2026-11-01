@@ -54,6 +54,12 @@
   .seg button{flex:1; border:0; background:transparent; color:var(--ink-soft); font-family:inherit;
     font-size:14px; font-weight:500; padding:9px 6px; border-radius:10px; cursor:pointer; transition:.18s; white-space:nowrap;}
   .seg button.active{background:var(--card); color:var(--indigo); box-shadow:0 2px 8px rgba(60,48,28,.10); font-weight:700;}
+  #scopeSeg button{font-size:13.5px; padding:9px 3px;}
+  .badge{display:inline-block; min-width:17px; height:17px; line-height:17px; padding:0 5px; margin-left:4px;
+    border-radius:999px; background:var(--vermilion); color:#fff; font-size:11px; font-weight:700; vertical-align:2px;}
+  .badge[hidden]{display:none;}
+  #clearWrongBtn{margin-left:0; margin-right:2px; flex:0 0 auto; color:var(--ink-soft);
+    font-size:12px; padding:6px 10px; background:var(--card);}
 
   .card{background:var(--card); border-radius:26px; box-shadow:var(--shadow); padding:24px 20px 22px;
     border:1px solid #f2ebdd; position:relative; overflow:hidden;}
@@ -61,6 +67,12 @@
     background:radial-gradient(120% 90% at 50% -20%, rgba(44,62,107,.05), transparent 55%);}
   .panel{display:none; flex-direction:column; align-items:center; gap:6px; position:relative; z-index:1;}
   .panel.active{display:flex;}
+  .type-label.hide{display:none;}
+  .empty{display:flex; flex-direction:column; align-items:center; gap:10px; padding:34px 10px 30px; text-align:center;}
+  .empty .ico{font-size:44px; line-height:1;}
+  .empty .t{font-size:17px; font-weight:700; color:var(--indigo);}
+  .empty .s{font-size:13.5px; color:var(--ink-soft); line-height:1.6; max-width:30ch;}
+  .empty .btn-main{min-height:46px; margin-top:8px;}
 
   .type-label{font-size:12px; letter-spacing:.16em; color:var(--ink-soft); text-transform:uppercase; margin-top:2px;}
   .kana{font-family:"Noto Serif JP","Hiragino Mincho ProN","Yu Mincho",serif; font-weight:700;
@@ -216,15 +228,16 @@
       <div class="seg" id="scopeSeg">
         <button data-scope="hira" class="active">平假名</button>
         <button data-scope="kata">片假名</button>
-        <button data-scope="both">全部</button>
+        <button data-scope="both">隨機混合</button>
+        <button data-scope="wrong">錯題簿<span class="badge" id="wrongBadge" hidden>0</span></button>
       </div>
+      <button class="ghostbtn" id="clearWrongBtn" hidden title="清空錯題簿">清空</button>
     </div>
 
     <div class="voicerow">
       <span class="vl">語音</span>
       <button class="vbtn" data-voice="g">Google</button>
       <button class="vbtn" data-voice="n">Nanami</button>
-      <button class="vbtn" data-voice="sys">系統</button>
       <button class="slowbtn" id="slowBtn" title="慢速讀音">慢讀</button>
       <button class="slowbtn" id="romajiBtn" title="喺喇叭下面顯示拼音">拼音</button>
     </div>
@@ -244,6 +257,7 @@
 
       <!-- LISTEN PANEL -->
       <div class="panel" id="listenPanel">
+        <div class="type-label hide" id="listenType"></div>
         <div class="prompt-wrap">
           <button class="listen-prompt" id="listenPrompt" title="撳再聽一次"><span class="ico"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4.03v8.05A4.5 4.5 0 0 0 16.5 12zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg></span></button>
           <div class="prompt-romaji" id="listenRomaji"></div>
@@ -255,6 +269,7 @@
 
       <!-- WRITE PANEL -->
       <div class="panel" id="writePanel">
+        <div class="type-label hide" id="writeType"></div>
         <div class="prompt-wrap">
           <button class="listen-prompt" id="writePrompt" title="撳再聽一次"><span class="ico"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4.03v8.05A4.5 4.5 0 0 0 16.5 12zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg></span></button>
           <div class="prompt-romaji" id="writeRomaji"></div>
@@ -273,6 +288,16 @@
           <button class="score no" id="noBtn">✗ 錯</button>
         </div>
         <div class="feedback" id="fbWrite"></div>
+      </div>
+
+      <!-- 錯題簿空狀態 -->
+      <div class="panel" id="emptyPanel">
+        <div class="empty">
+          <div class="ico"><svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v18H6.5A2.5 2.5 0 0 0 4 22z"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M9 7h7"/></svg></div>
+          <div class="t">錯題簿暫時係空</div>
+          <div class="s">答錯嘅字會自動記低（唔會重覆）；喺錯題簿答啱就會自動移走。</div>
+          <button class="btn-main" id="emptyBtn">去練習</button>
+        </div>
       </div>
     </div>
 
@@ -317,6 +342,7 @@
   ];
   const packHira = HIRA.map(([k,...r])=>({k,r,type:'hira'}));
   const packKata = KATA.map(([k,...r])=>({k,r,type:'kata'}));
+  const ALL_KANA = new Map(packHira.concat(packKata).map(o=>[o.k,o]));
 
   // kana -> 標準讀音（用嚟核對聽聲模式）
   const ROMAJI = {};
@@ -335,10 +361,13 @@
   const paper=$('paper'), revealEl=$('reveal'), scorebar=$('scorebar'), revealBtn=$('revealBtn');
   const candsEl=$('cands');
   const writebarEl=document.querySelector('.writebar');
+  const emptyPanel=$('emptyPanel'), listenType=$('listenType'), writeType=$('writeType');
+  const wrongBadge=$('wrongBadge'), clearWrongBtn=$('clearWrongBtn');
 
   // ── 狀態 ──────────────────────────────────────────────────
   let mode = localStorage.getItem('kanaMode') || 'read';   // 'read' | 'listen'
-  let scope = localStorage.getItem('kanaScope') || 'hira';
+  let scope = localStorage.getItem('kanaScope') || 'hira';  // 'hira' | 'kata' | 'both' | 'wrong'
+  let wrongBook = loadWrongBook();   // 錯題簿：假名 key，唔會重覆
   let pool = [], current = null, answered = false, lastK = null;
   let stats = {correct:0, wrong:0, streak:0};
   let padButtons = [];
@@ -350,9 +379,37 @@
   const norm = s => (s||'').toLowerCase().replace(/[\s\-'’丶]/g,'').trim();
   const toHira = s => (s||'').replace(/[\u30a1-\u30f6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
 
+  // ── 錯題簿（localStorage 保存，同一個字唔會重覆）──────────────
+  function loadWrongBook(){
+    try{
+      const a = JSON.parse(localStorage.getItem('kanaWrong') || '[]');
+      return Array.isArray(a) ? a.filter(k=>typeof k==='string' && ALL_KANA.has(k)) : [];
+    }catch(e){ return []; }
+  }
+  function saveWrongBook(){
+    try{ localStorage.setItem('kanaWrong', JSON.stringify(wrongBook)); }catch(e){}
+    updateWrongBadge();
+  }
+  function addWrong(o){
+    if(!o || wrongBook.includes(o.k)) return;
+    wrongBook.push(o.k); saveWrongBook();
+  }
+  function dropWrong(o){
+    if(!o) return;
+    const i = wrongBook.indexOf(o.k);
+    if(i>=0){ wrongBook.splice(i,1); saveWrongBook(); }
+  }
+  function updateWrongBadge(){
+    const n = wrongBook.length;
+    wrongBadge.textContent = n;
+    wrongBadge.hidden = n === 0;
+    clearWrongBtn.hidden = !(scope==='wrong' && n>0);
+  }
+
   function buildPool(){
     if(scope==='hira') pool = packHira.slice();
     else if(scope==='kata') pool = packKata.slice();
+    else if(scope==='wrong') pool = wrongBook.map(k=>ALL_KANA.get(k)).filter(Boolean);
     else pool = packHira.concat(packKata);
   }
   function pickNext(){
@@ -380,7 +437,10 @@
   let audioOk = true, unlocked = false;
   let slowMode = localStorage.getItem('kanaSlow') === '1';
   let romajiHint = localStorage.getItem('kanaRomaji') === '1';
-  let voiceMode = localStorage.getItem('kanaVoice') || 'g';   // 'g' | 'n' | 'sys'
+  let voiceMode = localStorage.getItem('kanaVoice') || 'g';   // 'g'（Google）| 'n'（Nanami）
+  if(voiceMode!=='g' && voiceMode!=='n'){                     // 舊版「系統」選項已移除
+    voiceMode='g'; try{ localStorage.setItem('kanaVoice','g'); }catch(e){}
+  }
   const VOICE_DIR = { g:'audio/g/', n:'audio/n/' };
 
   function ttsFallback(kana){
@@ -397,7 +457,7 @@
   function speak(kana, forceSlow){
     const slow = forceSlow===undefined ? slowMode : !!forceSlow;
     const rom = ROMAJI[kana];
-    if(!audioOk || !rom || voiceMode==='sys'){ ttsFallback(kana); return; }
+    if(!audioOk || !rom){ ttsFallback(kana); return; }
     try{ player.pause(); }catch(e){}
     player.src = VOICE_DIR[voiceMode] + rom + '.mp3';
     try{
@@ -439,10 +499,18 @@
   function buildPad(){
     padEl.innerHTML=''; padButtons=[];
     const groups=[];
-    if(scope==='hira'||scope==='both') groups.push(['ひらがな',packHira]);
-    if(scope==='kata'||scope==='both') groups.push(['カタカナ',packKata]);
+    if(scope==='hira') groups.push(['ひらがな',packHira]);
+    else if(scope==='kata') groups.push(['カタカナ',packKata]);
+    else {
+      // 隨機混合／錯題簿：有邊種字就出邊種鍵盤
+      const hasH = scope==='both' || pool.some(o=>o.type==='hira');
+      const hasK = scope==='both' || pool.some(o=>o.type==='kata');
+      if(hasH) groups.push(['ひらがな',packHira]);
+      if(hasK) groups.push(['カタカナ',packKata]);
+    }
+    const showLabel = groups.length > 1;
     groups.forEach(([label,arr])=>{
-      if(scope==='both'){
+      if(showLabel){
         const l=document.createElement('div'); l.className='pad-label'; l.textContent=label; padEl.appendChild(l);
       }
       arr.forEach(o=>{
@@ -463,23 +531,44 @@
     fbListen.className='feedback'; fbListen.innerHTML='';
     fbWrite.className='feedback'; fbWrite.innerHTML='';
   }
+  const typeName = t => t==='hira' ? 'ひらがな' : 'カタカナ';
+  // 隨機混合（或題庫本身兩種字都有）→ 出題要標明係平假名定片假名
+  function showTypeHint(){
+    if(scope==='both') return true;
+    return pool.some(o=>o.type==='hira') && pool.some(o=>o.type==='kata');
+  }
   function newQuestion(){
-    answered=false; current=pickNext(); clearFeedback(); renderRomaji();
+    answered=false; clearFeedback();
+    if(scope==='wrong') buildPool();          // 錯題簿答啱會少咗字，每次重新計
+    if(!pool.length){                          // 錯題簿空 → 顯示空狀態
+      current=null; lastK=null; renderRomaji();
+      [readPanel,listenPanel,writePanel].forEach(p=>p.classList.remove('active'));
+      emptyPanel.classList.add('active');
+      updateWrongBadge();
+      return;
+    }
+    emptyPanel.classList.remove('active');
+    current=pickNext(); renderRomaji();
+    const hint = showTypeHint();
 
     if(mode==='read'){
       readPanel.classList.add('active'); listenPanel.classList.remove('active');
       kanaEl.textContent=current.k;
       kanaEl.style.animation='none'; void kanaEl.offsetWidth; kanaEl.style.animation='';
-      typeEl.textContent = current.type==='hira'?'ひらがな':'カタカナ';
+      typeEl.textContent = typeName(current.type);
       inputEl.value=''; inputEl.className=''; inputEl.disabled=false;
       checkBtn.textContent='檢查'; checkBtn.classList.remove('next');
       inputEl.focus({preventScroll:true});
     }else if(mode==='listen'){
       listenPanel.classList.add('active'); readPanel.classList.remove('active'); writePanel.classList.remove('active');
+      listenType.textContent = typeName(current.type);
+      listenType.classList.toggle('hide', !hint);
       resetPad();
       setTimeout(playPrompt, 120);
     }else{
       writePanel.classList.add('active'); readPanel.classList.remove('active'); listenPanel.classList.remove('active');
+      writeType.textContent = typeName(current.type);
+      writeType.classList.toggle('hide', !hint);
       resetInk();
       setTimeout(playPrompt, 120);
     }
@@ -495,13 +584,15 @@
 
     if(ok){
       stats.correct++; stats.streak++;
+      if(scope==='wrong') dropWrong(current);
       inputEl.classList.add('correct');
-      showFeedback(fbRead, true, '答啱！', '');
+      showFeedback(fbRead, true, '答啱！', scope==='wrong'?'<span class="alt">已移出錯題簿</span>':'');
       updateStats();
       setTimeout(()=>{ if(answered && inputEl.classList.contains('correct')) newQuestion(); }, 750);
       checkBtn.textContent='下一題 →'; checkBtn.classList.add('next');
     }else{
       stats.wrong++; stats.streak=0;
+      addWrong(current);
       inputEl.classList.add('wrong');
       const primary=current.r[0], alts=current.r.slice(1);
       let msg='正確答案：<span class="answer-txt">'+primary+'</span>';
@@ -524,11 +615,13 @@
 
     if(ok){
       stats.correct++; stats.streak++;
-      showFeedback(fbListen, true, '答啱！', '');
+      if(scope==='wrong') dropWrong(current);
+      showFeedback(fbListen, true, '答啱！', scope==='wrong'?'<span class="alt">已移出錯題簿</span>':'');
       updateStats();
       setTimeout(()=>{ if(answered) newQuestion(); }, 850);
     }else{
       stats.wrong++; stats.streak=0;
+      addWrong(current);
       const rb = btnFor(current.k); if(rb) rb.el.classList.add('reveal');
       showFeedback(fbListen, false, '', '正確係 <span class="answer-txt">'+current.k+'</span> <span class="alt">· 撳下繼續</span>', current.k);
       updateStats();
@@ -584,8 +677,11 @@
   function scoreWrite(ok){
     if(mode!=='write' || !revealed || answered) return;
     answered=true;
-    if(ok){ stats.correct++; stats.streak++; showFeedback(fbWrite, true, '答啱！', '', current.k); }
-    else { stats.wrong++; stats.streak=0; showFeedback(fbWrite, false, '', '下一題再嚟 <span class="alt">· '+current.r[0]+'</span>', current.k); }
+    if(ok){ stats.correct++; stats.streak++;
+      if(scope==='wrong') dropWrong(current);
+      showFeedback(fbWrite, true, '答啱！', scope==='wrong'?'<span class="alt">已移出錯題簿</span>':'', current.k); }
+    else { stats.wrong++; stats.streak=0; addWrong(current);
+      showFeedback(fbWrite, false, '', '下一題再嚟 <span class="alt">· '+current.r[0]+'</span>', current.k); }
     updateStats();
     setTimeout(()=>{ if(answered) newQuestion(); }, 950);
   }
@@ -721,6 +817,7 @@
       answered = true;
       btn.classList.add('right');
       stats.correct++; stats.streak++;
+      if(scope==='wrong') dropWrong(current);
       showFeedback(fbWrite, true, '答啱！', '', current.k);
       updateStats();
       writebarEl.style.display='none';
@@ -792,7 +889,7 @@
   function setScope(s){
     scope=s; localStorage.setItem('kanaScope',s);
     [...scopeSeg.children].forEach(b=>b.classList.toggle('active', b.dataset.scope===s));
-    buildPool(); buildPad(); newQuestion();
+    buildPool(); buildPad(); updateWrongBadge(); newQuestion();
   }
 
   // ── 事件 ──────────────────────────────────────────────────
@@ -820,6 +917,13 @@
   $('resetBtn').addEventListener('click', ()=>{
     stats={correct:0,wrong:0,streak:0}; updateStats(); newQuestion();
   });
+  // 錯題簿：清空 / 空狀態返回練習
+  clearWrongBtn.addEventListener('click', ()=>{
+    if(!wrongBook.length) return;
+    if(!confirm('清空錯題簿（'+wrongBook.length+' 個字）？')) return;
+    wrongBook=[]; saveWrongBook(); buildPool(); buildPad(); newQuestion();
+  });
+  $('emptyBtn').addEventListener('click', ()=> setScope('both'));
   const slowBtn = $('slowBtn');
   function applySlow(){
     slowBtn.classList.toggle('on', slowMode);
@@ -870,11 +974,11 @@
 
   // ── 初始化 ────────────────────────────────────────────────
   if(!['read','listen','write'].includes(mode)) mode='read';
-  if(!['hira','kata','both'].includes(scope)) scope='hira';
+  if(!['hira','kata','both','wrong'].includes(scope)) scope='hira';
   [...modeSeg.children].forEach(b=>b.classList.toggle('active', b.dataset.mode===mode));
   [...scopeSeg.children].forEach(b=>b.classList.toggle('active', b.dataset.scope===scope));
   if('speechSynthesis' in window){ speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged=()=>{}; }
-  buildPool(); buildPad(); updateStats(); newQuestion();
+  buildPool(); buildPad(); updateStats(); updateWrongBadge(); newQuestion();
   applySlow(); applyVoice(); applyRecog(); applyRomaji();
 
   // ── Service Worker（網頁版離線用；app 內建資源時自動略過）─────
