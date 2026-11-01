@@ -869,7 +869,7 @@
     const hint = showTypeHint();
 
     if(mode==='read'){
-      readPanel.classList.add('active'); listenPanel.classList.remove('active');
+      readPanel.classList.add('active'); listenPanel.classList.remove('active'); writePanel.classList.remove('active');
       kanaEl.textContent=current.k;
       kanaEl.style.animation='none'; void kanaEl.offsetWidth; kanaEl.style.animation='';
       typeEl.textContent = typeName(current.type);
