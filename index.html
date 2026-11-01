@@ -272,10 +272,6 @@
   .iconbtn.muted{color:var(--red); border-color:var(--red);}
   .iconbtn.muted .ico-on{display:none;}
   .iconbtn.muted .ico-off{display:block;}
-  #volRange{flex:1 1 auto; min-width:90px; max-width:180px; height:22px; accent-color:var(--indigo); cursor:pointer;}
-  #volRange:disabled{opacity:.45; cursor:default;}
-  .volnum{font-size:11.5px; color:var(--ink-soft); letter-spacing:.04em; min-width:44px; text-align:right;
-    font-variant-numeric:tabular-nums;}
 
   .stats{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; background:var(--card);
     border-radius:18px; padding:14px 8px; box-shadow:0 4px 18px rgba(60,48,28,.06); border:1px solid #f2ebdd;}
@@ -337,13 +333,11 @@
     </div>
 
     <div class="voicerow volrow">
-      <span class="vl">音量</span>
+      <span class="vl">出聲</span>
       <button class="iconbtn" id="muteBtn" aria-pressed="false" title="靜音">
         <svg class="ico-on" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4.03v8.05A4.5 4.5 0 0 0 16.5 12zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
         <svg class="ico-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3z" fill="currentColor" stroke="none"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>
       </button>
-      <input type="range" id="volRange" min="0" max="100" step="5" value="100" aria-label="音量">
-      <span class="volnum" id="volNum">100%</span>
     </div>
 
     <div class="card">
@@ -592,7 +586,6 @@
   let inkT0=0, recogTimer=null, recogSeq=0, cands=[];
   let autoRecog = localStorage.getItem('kanaRecog') !== '0';
   let silentStart = false;   // 錯題簿 sheet 開住、未正式開始練習 → 唔好發聲
-  let volLevel = (()=>{ const v=parseFloat(localStorage.getItem('kanaVol')); return isFinite(v)?Math.min(1,Math.max(0,v)):1; })();
   let muted = localStorage.getItem('kanaMute') === '1';
 
   // ── 工具 ──────────────────────────────────────────────────
@@ -700,7 +693,7 @@
     try{
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(kana);
-      u.lang='ja-JP'; u.rate=(slowMode?0.6:0.8); u.pitch=1; u.volume=volLevel;
+      u.lang='ja-JP'; u.rate=(slowMode?0.6:0.8); u.pitch=1;
       const v = speechSynthesis.getVoices().find(x=>/ja|japan/i.test(x.lang));
       if(v) u.voice=v;
       window.speechSynthesis.speak(u);
@@ -728,62 +721,13 @@
     const slow = forceSlow===undefined ? slowMode : !!forceSlow;
     const rom = ROMAJI[kana];
     if(!audioOk || !rom){ ttsFallback(kana); return; }
-    stopBuffer();
-    const url = VOICE_DIR[voiceMode] + rom + '.mp3';
-    const rate = slow ? 0.7 : 1;
-    if(volLevel >= 0.999){ playElement(url, rate, kana); return; }   // 全音量：原本條路，最穩
-    playBuffered(url, rate).then(ok=>{ if(!ok) playElement(url, rate, kana); }).catch(()=>playElement(url, rate, kana));
+    playElement(VOICE_DIR[voiceMode] + rom + '.mp3', slow ? 0.7 : 1, kana);
   }
   // 檔案載入失敗（404／斷網）→ 之後全部用 TTS
   player.addEventListener('error', ()=>{ audioOk = false; });
-  // ── 音量 ────────────────────────────────────────────────
-  // 100% 音量時照用原本嘅 <audio>（最穩、保音高、iOS 都順）；
-  // 要細聲先用 Web Audio 解碼 BufferSource + GainNode（iOS 上 element.volume 係唯讀）。
-  // 唔會再 createMediaElementSource：一旦接落 graph，iOS 換 src 會斷音／冇聲。
-  let audioCtx=null, gainNode=null, curSrc=null;
-  const bufCache = new Map();
-  function ensureCtx(){
-    if(audioCtx) return !!gainNode;
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if(!AC) return false;
-    try{
-      audioCtx = new AC();
-      gainNode = audioCtx.createGain();
-      gainNode.gain.value = muted ? 0 : volLevel;
-      gainNode.connect(audioCtx.destination);
-      return true;
-    }catch(e){ audioCtx=null; gainNode=null; return false; }
-  }
-  function resumeCtx(){ try{ if(audioCtx && audioCtx.state==='suspended') audioCtx.resume(); }catch(e){} }
-  function stopBuffer(){
-    if(curSrc){ try{ curSrc.stop(); }catch(e){} curSrc=null; }
-  }
-  async function playBuffered(url, rate){
-    if(!ensureCtx()) return false;
-    let buf = bufCache.get(url);
-    if(!buf){
-      const res = await fetch(url, {cache:'force-cache'});
-      if(!res.ok) return false;
-      const ab = await res.arrayBuffer();
-      buf = await audioCtx.decodeAudioData(ab);
-      bufCache.set(url, buf);
-    }
-    stopBuffer();
-    try{ player.pause(); }catch(e){}
-    resumeCtx();
-    const src = audioCtx.createBufferSource();
-    src.buffer = buf;
-    src.playbackRate.value = rate;
-    src.connect(gainNode);
-    gainNode.gain.value = muted ? 0 : volLevel;
-    src.start();
-    curSrc = src;
-    return true;
-  }
   // iOS/Safari：第一次用戶手勢要「解鎖」音效
   function unlockAudio(){
     if(unlocked) return; unlocked = true;
-    ensureCtx(); resumeCtx();
     try{
       const a = new Audio(SILENT);
       a.muted = true;
@@ -794,12 +738,6 @@
   }
   document.addEventListener('pointerdown', unlockAudio, {once:true, passive:true});
   document.addEventListener('keydown', unlockAudio, {once:true});
-  // 切返前台／有互動時補 resume，避免 AudioContext 停咗變冇聲
-  ['pointerdown','touchstart','click','keydown'].forEach(t=>
-    document.addEventListener(t, ()=>{ if(audioCtx) resumeCtx(); }, {passive:true}));
-  document.addEventListener('visibilitychange', ()=>{
-    if(!document.hidden && audioCtx){ resumeCtx(); if(gainNode) gainNode.gain.value = muted?0:volLevel; }
-  });
   function playPrompt(){
     if(!current || mode==='read') return;
     const btn = mode==='write' ? writePrompt : listenPrompt;
@@ -1484,33 +1422,20 @@
     if(current) speak(current.k);
   });
 
-  // ── 音量／靜音（全站：真人音檔 + TTS）──────────────────
-  const volRange=$('volRange'), volNum=$('volNum'), muteBtn=$('muteBtn');
-  function applyVolume(){
-    const eff = muted ? 0 : volLevel;
-    if(gainNode){ try{ gainNode.gain.value = eff; }catch(e){} }
-    else { try{ player.volume = eff; }catch(e){} }
-    volRange.value = Math.round(volLevel*100);
-    volRange.disabled = muted;
-    volNum.textContent = muted ? '靜音' : Math.round(volLevel*100)+'%';
+  // ── 靜音（全站：真人音檔 + TTS）────────────────────────
+  const muteBtn=$('muteBtn');
+  function applyMute(){
     muteBtn.classList.toggle('muted', muted);
     muteBtn.setAttribute('aria-pressed', muted?'true':'false');
     muteBtn.title = muted ? '取消靜音' : '靜音';
+    try{ player.muted = muted; }catch(e){}
   }
-  volRange.addEventListener('input', ()=>{
-    volLevel = (+volRange.value)/100;
-    if(muted){ muted=false; try{ localStorage.setItem('kanaMute','0'); }catch(e){} }
-    try{ localStorage.setItem('kanaVol', String(volLevel)); }catch(e){}
-    applyVolume();
-  });
-  window.__kanaAudio = ()=>({ vol:volLevel, muted, gain:gainNode?gainNode.gain.value:null,
-    ctx:audioCtx?audioCtx.state:null, elemVol:player.volume, buffered:!!curSrc,
-    paused:player.paused, t:+player.currentTime.toFixed(2), src:(player.src||'').split('/').pop(),
+  window.__kanaAudio = ()=>({ muted, paused:player.paused, t:+player.currentTime.toFixed(2),
     url:(player.src||'').split('/kana-dojo-dev/').pop() });
   muteBtn.addEventListener('click', ()=>{
     muted = !muted;
     try{ localStorage.setItem('kanaMute', muted?'1':'0'); }catch(e){}
-    applyVolume();
+    applyMute();
     if(muted){ try{ player.pause(); }catch(e){} }
     else if(current && mode!=='read') speak(current.k);
   });
@@ -1574,7 +1499,7 @@
   buildPool(); buildPad(); updateStats(); updateWrongBadge();
   if(scope==='wrong'){ silentStart=true; openSheet(); }   // 錯題簿：先睇清單，唔出題唔發聲
   else newQuestion();
-  applySlow(); applyVoice(); applyRecog(); applyRomaji(); applyExtras(); applyVolume();
+  applySlow(); applyVoice(); applyRecog(); applyRomaji(); applyExtras(); applyMute();
 
   // ── Service Worker（網頁版離線用；app 內建資源時自動略過）─────
   const isNativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
