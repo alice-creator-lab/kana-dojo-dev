@@ -83,7 +83,7 @@
 
   .mode{display:flex; background:var(--indigo); border-radius:15px; padding:5px; gap:5px;}
   .mode button{flex:1; border:0; background:transparent; color:#c7d0e8; font-family:inherit;
-    font-size:14px; font-weight:600; padding:11px 4px; border-radius:11px; cursor:pointer; transition:.18s; white-space:nowrap;}
+    font-size:13.5px; font-weight:600; padding:11px 2px; border-radius:11px; cursor:pointer; transition:.18s; white-space:nowrap;}
   .mode button.active{background:var(--card); color:var(--indigo); box-shadow:0 2px 10px rgba(0,0,0,.18);}
 
   .modebar{display:flex; gap:8px; align-items:center;}
@@ -250,6 +250,15 @@
   .reveal{width:100%; text-align:center; font-size:14px; color:var(--ink-soft); margin-top:12px; display:none;}
   .reveal.show{display:block;}
   .reveal b{font-family:"Noto Serif JP",serif; font-size:32px; color:var(--ink); margin:0 6px;}
+  .speak-row{display:flex; gap:8px; width:100%; max-width:320px; margin-top:6px; align-items:stretch;}
+  .micbtn{display:flex; align-items:center; justify-content:center; gap:8px; flex:1;}
+  .micbtn svg{width:19px; height:19px;}
+  .micbtn.rec{background:var(--red); box-shadow:0 6px 18px rgba(214,69,65,.3); animation:pulse 1.1s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:.72;}}
+  .micbtn:disabled{opacity:.45; cursor:default; box-shadow:none;}
+  .speak-row .ctlbtn{min-width:78px;}
+  .speak-note{font-size:11.5px; color:#b6ac99; text-align:center; margin-top:10px; line-height:1.5; max-width:330px;}
+
   .scorebar{width:100%; max-width:320px; display:none; gap:8px; margin-top:10px;}
   .scorebar.show{display:flex;}
   .score{flex:1; border-radius:13px; padding:13px 0; font-family:inherit; font-size:16px; font-weight:700; cursor:pointer;}
@@ -335,7 +344,7 @@
 <body>
   <div class="app">
     <header>
-      <div class="brand"><span class="jp">五十音</span><span class="sub">Kana Dojo</span><span class="ver" id="verTag">v23</span></div>
+      <div class="brand"><span class="jp">五十音</span><span class="sub">Kana Dojo</span><span class="ver" id="verTag">v24</span></div>
       <div class="hactions">
         <button class="iconbtn" id="chartBtn" title="假名表（溫習用）">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg>
@@ -349,9 +358,10 @@
     </header>
 
     <div class="mode" id="modeSeg">
-      <button data-mode="read" class="active">睇字 → 寫拼音</button>
-      <button data-mode="listen">聽聲 → 寫假名</button>
-      <button data-mode="write">聽聲 → 手寫</button>
+      <button data-mode="read" class="active" title="睇字 → 寫拼音（羅馬字）">睇字</button>
+      <button data-mode="listen" title="聽聲 → 揀假名">聽聲</button>
+      <button data-mode="write" title="聽聲 → 手寫">手寫</button>
+      <button data-mode="speak" title="睇字 → 讀出聲，語音評分">讀音</button>
     </div>
 
     <div class="modebar">
@@ -435,6 +445,22 @@
         </div>
         <button class="btn-main" id="writeNextBtn" hidden>下一條 →</button>
         <div class="feedback" id="fbWrite"></div>
+      </div>
+
+      <!-- SPEAK PANEL（讀音評分） -->
+      <div class="panel" id="speakPanel">
+        <div class="type-label hide" id="speakType"></div>
+        <div class="kana" id="speakKana">あ</div>
+        <div class="speak-row">
+          <button class="btn-main micbtn" id="micBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/><path d="M8.5 21h7"/></svg>
+            <span id="micLabel">錄音</span>
+          </button>
+          <button class="ctlbtn" id="speakReplay">重播</button>
+        </div>
+        <div class="speak-note" id="speakNote"></div>
+        <div class="feedback" id="fbSpeak"></div>
+        <button class="btn-main" id="speakNextBtn" hidden>下一條 →</button>
       </div>
 
       <!-- 錯題簿空狀態 -->
@@ -622,6 +648,9 @@
   const candsEl=$('cands');
   const writebarEl=document.querySelector('.writebar');
   const emptyPanel=$('emptyPanel'), listenType=$('listenType'), writeType=$('writeType');
+  const speakPanel=$('speakPanel'), speakKana=$('speakKana'), speakType=$('speakType');
+  const micBtn=$('micBtn'), micLabel=$('micLabel'), speakReplay=$('speakReplay');
+  const fbSpeak=$('fbSpeak'), speakNote=$('speakNote'), speakNextBtn=$('speakNextBtn');
   const emptyTitle=$('emptyTitle'), emptySub=$('emptySub'), emptyBtn=$('emptyBtn');
   const writeNextBtn=$('writeNextBtn');
   const draftKana=$('draftKana'), marksEl=$('marks'), listenCheckBtn=$('listenCheckBtn');
@@ -631,7 +660,8 @@
   const startPracticeBtn=$('startPracticeBtn'), sheetSub=$('sheetSub'), addModeBtn=$('addModeBtn');
 
   // ── 狀態 ──────────────────────────────────────────────────
-  let mode = localStorage.getItem('kanaMode') || 'read';   // 'read' | 'listen'
+  let mode = localStorage.getItem('kanaMode') || 'read';   // 'read' | 'listen' | 'write' | 'speak'
+  if(['read','listen','write','speak'].indexOf(mode) < 0) mode = 'read';
   let scope = localStorage.getItem('kanaScope') || 'hira';  // 'hira' | 'kata' | 'both' | 'wrong'
   let wrongBook = loadWrongBook();   // 錯題簿：假名 key，唔會重覆
   let wrongSel = loadWrongSel();     // 邊啲字要練（null = 未設定過 → 全部）
@@ -799,7 +829,7 @@
   document.addEventListener('keydown', unlockAudio, {once:true});
   function playPrompt(){
     if(!current || mode==='read') return;
-    const btn = mode==='write' ? writePrompt : listenPrompt;
+    const btn = mode==='write' ? writePrompt : (mode==='speak' ? speakReplay : listenPrompt);
     btn.classList.remove('playing'); void btn.offsetWidth; btn.classList.add('playing');
     speak(current.k);
   }
@@ -895,7 +925,7 @@
     fbWrite.className='feedback'; fbWrite.innerHTML='';
   }
   const typeName = t => t==='hira' ? 'ひらがな' : 'カタカナ';
-  const MODE_LABEL = { read:'睇字寫拼音', listen:'聽聲揀假名', write:'聽聲手寫' };
+  const MODE_LABEL = { read:'睇字寫拼音', listen:'聽聲揀假名', write:'聽聲手寫', speak:'讀音評分' };
   // 隨機混合（或題庫本身兩種字都有）→ 出題要標明係平假名定片假名
   // 錯題簿裡面平／片假名混住，聽聲／手寫都睇唔到字形，所以一律標明
   function showTypeHint(){
@@ -906,7 +936,7 @@
     if(scope==='wrong') buildPool();          // 錯題簿答啱會少咗字，每次重新計
     if(!pool.length){                          // 錯題簿空／未揀字 → 空狀態
       current=null; lastK=null; renderRomaji();
-      [readPanel,listenPanel,writePanel].forEach(p=>p.classList.remove('active'));
+      [readPanel,listenPanel,writePanel,speakPanel].forEach(p=>p.classList.remove('active'));
       emptyPanel.classList.add('active');
       const nothing = !wrongBook.length;
       emptyTitle.textContent = nothing ? '錯題簿暫時係空' : '未揀字練習';
@@ -923,7 +953,7 @@
     const hint = showTypeHint();
 
     if(mode==='read'){
-      readPanel.classList.add('active'); listenPanel.classList.remove('active'); writePanel.classList.remove('active');
+      readPanel.classList.add('active'); listenPanel.classList.remove('active'); writePanel.classList.remove('active'); speakPanel.classList.remove('active');
       kanaEl.textContent=current.k;
       kanaEl.style.animation='none'; void kanaEl.offsetWidth; kanaEl.style.animation='';
       typeEl.textContent = typeName(current.type);
@@ -931,13 +961,21 @@
       checkBtn.textContent='檢查'; checkBtn.className='btn-main';
       inputEl.focus({preventScroll:true});
     }else if(mode==='listen'){
-      listenPanel.classList.add('active'); readPanel.classList.remove('active'); writePanel.classList.remove('active');
+      listenPanel.classList.add('active'); readPanel.classList.remove('active'); writePanel.classList.remove('active'); speakPanel.classList.remove('active');
       listenType.textContent = typeName(current.type);
       listenType.classList.toggle('hide', !hint);
       resetDraft(); buildPad(); buildMarks();
       if(!silent) setTimeout(playPrompt, 120);
+    }else if(mode==='speak'){
+      speakPanel.classList.add('active'); readPanel.classList.remove('active'); listenPanel.classList.remove('active'); writePanel.classList.remove('active');
+      speakType.textContent = typeName(current.type);
+      speakType.classList.toggle('hide', !hint);
+      speakKana.textContent = current.k;
+      speakKana.style.animation='none'; void speakKana.offsetWidth; speakKana.style.animation='';
+      resetSpeak();
+      if(!silent) setTimeout(playPrompt, 120);
     }else{
-      writePanel.classList.add('active'); readPanel.classList.remove('active'); listenPanel.classList.remove('active');
+      writePanel.classList.add('active'); readPanel.classList.remove('active'); listenPanel.classList.remove('active'); speakPanel.classList.remove('active');
       writeType.textContent = typeName(current.type);
       writeType.classList.toggle('hide', !hint);
       resetInk();
@@ -1279,7 +1317,7 @@
   function showFeedback(el, ok, head, detailHtml, speakKana){
     el.className='feedback show '+(ok?'ok':'no');
     // 聽聲模式自己有「重讀／慢放」掣，唔需要 feedback 內置嘅喇叭掣
-    const withSpeak = el.id !== 'fbListen';
+    const withSpeak = el.id !== 'fbListen' && el.id !== 'fbSpeak';
     el.innerHTML =
       '<span class="dot"></span>' +
       (head?'<span>'+head+'</span>':'') +
@@ -1304,6 +1342,7 @@
 
   // ── 切換控制 ──────────────────────────────────────────────
   function setMode(m){
+    stopSpeak();
     mode=m; localStorage.setItem('kanaMode',m);
     [...modeSeg.children].forEach(b=>b.classList.toggle('active', b.dataset.mode===m));
     newQuestion();
@@ -1323,6 +1362,88 @@
     [...scopeSeg.children].forEach(b=>b.classList.toggle('active', b.dataset.scope==='wrong'));
     buildPool(); buildPad(); updateWrongBadge(); newQuestion();
   }
+
+  // ── 讀音模式：Web Speech 語音識別評分 ─────────────────────
+  const SRClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let srObj = null, srListening = false, srTimer = null, srChanged = false;
+  function stopSpeak(){
+    clearTimeout(srTimer);
+    const r = srObj; srObj = null;
+    if(r){ try{ r.onresult=null; r.onerror=null; r.onend=null; r.abort(); }catch(e){} }
+    srListening = false;
+    micBtn.classList.remove('rec');
+    micLabel.textContent = '錄音';
+  }
+  function resetSpeak(){
+    fbSpeak.className='feedback'; fbSpeak.innerHTML='';
+    speakNextBtn.hidden = true;
+    stopSpeak();
+    micBtn.disabled = !SRClass;
+    speakNote.textContent = SRClass
+      ? '撳「錄音」，讀出上面個字（一次就夠）'
+      : '呢個瀏覽器唔支援語音識別（iPhone Safari 通常唔得）。可以撳「重播」自己對照。';
+  }
+  function startSpeak(){
+    if(mode!=='speak' || !current) return;
+    if(!SRClass){ speakNote.textContent='呢個瀏覽器唔支援語音識別，可以撳「重播」自己對。'; return; }
+    if(answered){ newQuestion(); return; }
+    if(srListening) return;
+    srListening = true;
+    micBtn.classList.add('rec'); micLabel.textContent='聽緊…';
+    fbSpeak.className='feedback'; fbSpeak.innerHTML='';
+    speakNote.textContent = '讀出上面個字…';
+    const r = new SRClass();
+    r.lang='ja-JP'; r.interimResults=false; r.maxAlternatives=5; r.continuous=false;
+    r.onresult = ev => {
+      const alts = [];
+      try{ const res = ev.results[0]; for(let i=0;i<res.length;i++) alts.push(res[i].transcript); }catch(e){}
+      stopSpeak();
+      judgeSpeak(alts);
+    };
+    r.onerror = ev => {
+      const err = (ev && ev.error) || '';
+      stopSpeak();
+      if(err==='not-allowed' || err==='service-not-allowed') speakNote.textContent='要用麥克風：請喺瀏覽器允許收音再試。';
+      else if(err==='no-speech') speakNote.textContent='聽唔到聲，再撳一次「錄音」。';
+      else if(err==='network') speakNote.textContent='語音服務連唔到（要上網），可以撳「重播」自己對。';
+      else speakNote.textContent='識別出錯（'+err+'），再試一次。';
+    };
+    r.onend = ()=>{ if(srObj===r) stopSpeak(); };
+    srObj = r;
+    try{ r.start(); }catch(e){ stopSpeak(); speakNote.textContent='開唔到語音識別，再試一次。'; return; }
+    srTimer = setTimeout(()=>{ try{ r.stop(); }catch(e){} }, 8000);
+  }
+  function judgeSpeak(alts){
+    if(mode!=='speak' || !current) return;
+    const target = toHira(current.k);
+    const clean = s => toHira((s||'').replace(/[\s、。．.,!?！？「」『』・…~\-—]/g,''));
+    const list = (alts||[]).map(clean).filter(Boolean);
+    const hit = list.some(a=>a===target) || list.some(a=>a.includes(target));
+    if(hit){
+      answered = true;
+      stats.correct++; stats.streak++;
+      if(scope==='wrong') dropWrong(current);
+      showFeedback(fbSpeak, true, '答啱！', scope==='wrong'?'<span class="alt">已移出錯題簿</span>':'', current.k);
+      updateStats();
+      speakNextBtn.hidden=false; speakNextBtn.className='btn-main next'; speakNextBtn.textContent='下一條 →';
+      speakNote.textContent = list[0] ? '（聽到：'+list[0]+'）' : '';
+      return;
+    }
+    const other = list.find(a=>a.length<=4);
+    if(other){
+      answered = true;
+      stats.wrong++; stats.streak=0; addWrong(current);
+      showFeedback(fbSpeak, false, '', '你讀咗「'+other+'」· 正確係 <span class="answer-txt">'+current.k+'</span>', current.k);
+      updateStats();
+      speakNextBtn.hidden=false; speakNextBtn.className='btn-main next err'; speakNextBtn.textContent='下一條 →';
+      speakNote.textContent='';
+      return;
+    }
+    speakNote.textContent = '聽唔清（認唔到呢個音）— 再撳「錄音」試一次。';
+  }
+  micBtn.addEventListener('click', startSpeak);
+  speakReplay.addEventListener('click', ()=>{ if(mode==='speak' && current) speak(current.k); });
+  speakNextBtn.addEventListener('click', ()=>{ if(answered) newQuestion(); });
 
   // ── 事件 ──────────────────────────────────────────────────
   modeSeg.addEventListener('click', e=>{ const b=e.target.closest('button'); if(b) setMode(b.dataset.mode); });
