@@ -880,7 +880,7 @@
   }
   // ── 手寫認字：本地筆順比對（KanjiVG 模板 + DTW）──────────
   let TPL = null, TPL_N = 16;
-  const tplReady = fetch('kana-templates.json?v=2')
+  const tplReady = fetch('kana-templates.json?v=4')
     .then(r=>r.json())
     .then(j=>{ TPL = j.tpl; TPL_N = j.n || 16; })
     .catch(()=>{ TPL = null; });
