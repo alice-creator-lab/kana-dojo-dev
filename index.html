@@ -811,8 +811,9 @@
   const typeName = t => t==='hira' ? 'ひらがな' : 'カタカナ';
   const MODE_LABEL = { read:'睇字寫拼音', listen:'聽聲揀假名', write:'聽聲手寫' };
   // 隨機混合（或題庫本身兩種字都有）→ 出題要標明係平假名定片假名
+  // 錯題簿裡面平／片假名混住，聽聲／手寫都睇唔到字形，所以一律標明
   function showTypeHint(){
-    if(scope==='both') return true;
+    if(scope==='wrong' || scope==='both') return true;
     return pool.some(o=>o.type==='hira') && pool.some(o=>o.type==='kata');
   }
   function newQuestion(){
