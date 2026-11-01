@@ -1,0 +1,5 @@
+kana-dojo.html
+.DS_Store
+
+# 只做網頁版：Android / APK 相關產物唔入 repo
+apk/

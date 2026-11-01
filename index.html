@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#2c3e6b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Kana Dojo">
+<title>五十音練習 · Kana Dojo</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --washi:#f4efe6; --washi-2:#ece4d6; --ink:#26221d; --ink-soft:#6b6357;
+    --card:#fffdf8; --indigo:#2c3e6b; --indigo-2:#3a4f86; --vermilion:#c8402f;
+    --green:#2e8b57; --green-bg:#e6f5ec; --red:#d64541; --red-bg:#fbe9e8;
+    --line:#e4dccd; --shadow:0 10px 40px rgba(60,48,28,.12), 0 2px 8px rgba(60,48,28,.06);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0; font-family:"Noto Sans JP","Hiragino Sans","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,sans-serif;
+    color:var(--ink);
+    background:
+      radial-gradient(1200px 600px at 80% -10%, #efe6d3 0%, transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, #e9e1d1 0%, transparent 55%),
+      var(--washi);
+    min-height:100dvh; display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
+    padding:calc(20px + env(safe-area-inset-top)) 16px calc(20px + env(safe-area-inset-bottom));
+  }
+  .app{width:100%; max-width:520px; display:flex; flex-direction:column; gap:14px; flex:0 0 auto;}
+
+  header{display:flex; align-items:center; justify-content:space-between; padding:0 4px;}
+  .brand{display:flex; align-items:baseline; gap:10px;}
+  .brand .jp{font-family:"Noto Serif JP",serif; font-weight:700; font-size:22px; letter-spacing:.06em;}
+  .brand .sub{font-size:12px; color:var(--ink-soft); letter-spacing:.14em; text-transform:uppercase;}
+  .reset{border:1px solid var(--line); background:var(--card); color:var(--ink-soft);
+    font-size:12.5px; padding:8px 13px; border-radius:999px; cursor:pointer; transition:.18s; font-family:inherit;}
+  .reset:hover{color:var(--vermilion); border-color:#e2c5bc;}
+
+  .mode{display:flex; background:var(--indigo); border-radius:15px; padding:5px; gap:5px;}
+  .mode button{flex:1; border:0; background:transparent; color:#c7d0e8; font-family:inherit;
+    font-size:14px; font-weight:600; padding:11px 4px; border-radius:11px; cursor:pointer; transition:.18s; white-space:nowrap;}
+  .mode button.active{background:var(--card); color:var(--indigo); box-shadow:0 2px 10px rgba(0,0,0,.18);}
+
+  .modebar{display:flex; gap:8px; align-items:center;}
+  .seg{display:flex; background:var(--washi-2); border-radius:14px; padding:4px; gap:4px; flex:1;}
+  .seg button{flex:1; border:0; background:transparent; color:var(--ink-soft); font-family:inherit;
+    font-size:14px; font-weight:500; padding:9px 6px; border-radius:10px; cursor:pointer; transition:.18s; white-space:nowrap;}
+  .seg button.active{background:var(--card); color:var(--indigo); box-shadow:0 2px 8px rgba(60,48,28,.10); font-weight:700;}
+
+  .card{background:var(--card); border-radius:26px; box-shadow:var(--shadow); padding:24px 20px 22px;
+    border:1px solid #f2ebdd; position:relative; overflow:hidden;}
+  .card::after{content:""; position:absolute; inset:0; pointer-events:none;
+    background:radial-gradient(120% 90% at 50% -20%, rgba(44,62,107,.05), transparent 55%);}
+  .panel{display:none; flex-direction:column; align-items:center; gap:6px; position:relative; z-index:1;}
+  .panel.active{display:flex;}
+
+  .type-label{font-size:12px; letter-spacing:.16em; color:var(--ink-soft); text-transform:uppercase; margin-top:2px;}
+  .kana{font-family:"Noto Serif JP","Hiragino Mincho ProN","Yu Mincho",serif; font-weight:700;
+    font-size:150px; line-height:1; color:var(--ink); user-select:none;
+    min-height:160px; display:flex; align-items:center;
+    animation:pop .28s cubic-bezier(.2,.9,.3,1.4);}
+  @keyframes pop{from{opacity:0; transform:scale(.8);} to{opacity:1; transform:scale(1);}}
+
+  .input-row{width:100%; margin-top:12px; display:flex; gap:10px;}
+  #answer{flex:1; min-width:0; font-family:inherit; font-size:20px; text-align:center;
+    padding:15px 14px; border-radius:15px; border:2px solid var(--line); background:#fffefb;
+    color:var(--ink); outline:none; transition:.18s; letter-spacing:.08em; font-weight:600;}
+  #answer::placeholder{color:#c3b9a6; font-weight:400; letter-spacing:.04em;}
+  #answer:focus{border-color:var(--indigo); box-shadow:0 0 0 4px rgba(44,62,107,.10);}
+  #answer.correct{border-color:var(--green); background:var(--green-bg); color:var(--green);}
+  #answer.wrong{border-color:var(--red); background:var(--red-bg); color:var(--red);}
+  .btn-main{border:0; border-radius:15px; padding:0 24px; font-family:inherit; font-size:16px; font-weight:700;
+    background:var(--indigo); color:#fff; cursor:pointer; transition:.18s; white-space:nowrap;
+    box-shadow:0 6px 18px rgba(44,62,107,.28);}
+  .btn-main:hover{background:var(--indigo-2);}
+  .btn-main.next{background:var(--vermilion); box-shadow:0 6px 18px rgba(200,64,47,.28);}
+
+  /* listen prompt */
+  .prompt-wrap{display:flex; flex-direction:column; align-items:center; gap:8px; padding:6px 0 2px;}
+  .listen-prompt{width:140px; height:140px; border-radius:50%; cursor:pointer;
+    background:linear-gradient(145deg,#eef1fb,#dfe6f7); border:2px solid #d5ddf2;
+    display:grid; place-items:center; box-shadow:0 10px 30px rgba(44,62,107,.18); transition:.2s;}
+  .listen-prompt:hover{transform:scale(1.03);}
+  .listen-prompt:active{transform:scale(.96);}
+  .listen-prompt .ico{font-size:58px; line-height:1; color:var(--indigo); display:grid; place-items:center;}
+  .listen-prompt .ico svg{width:1em; height:1em; display:block;}
+  .listen-prompt.playing{animation:ring .8s ease-out;}
+  @keyframes ring{0%{box-shadow:0 0 0 0 rgba(44,62,107,.30);} 100%{box-shadow:0 0 0 22px rgba(44,62,107,0);}}
+  .prompt-hint{font-size:13.5px; color:var(--ink-soft);}
+  .prompt-hint b{color:var(--indigo);}
+
+  /* 拼音提示（可選） */
+  .prompt-romaji{display:none; font-size:17px; font-weight:800; letter-spacing:.08em;
+    color:var(--indigo); line-height:1.2; user-select:none;}
+  .prompt-romaji.on{display:block; animation:romIn .18s ease-out;}
+  .prompt-romaji .alt{font-size:12px; font-weight:600; letter-spacing:.02em; color:var(--ink-soft); opacity:.85; margin-left:6px;}
+  @keyframes romIn{from{opacity:0; transform:translateY(-3px);} to{opacity:1; transform:none;}}
+
+  .pad{width:100%; margin-top:14px; display:grid; grid-template-columns:repeat(6,1fr); gap:8px;}
+  .pad button{aspect-ratio:1/1; border:1.5px solid var(--line); background:#fffefb; border-radius:12px;
+    font-family:"Noto Serif JP",serif; font-size:23px; font-weight:700; color:var(--ink); cursor:pointer; transition:.13s; padding:0;}
+  .pad button:hover{border-color:var(--indigo);}
+  .pad button:active{transform:scale(.93);}
+  .pad button:disabled{cursor:default;}
+  .pad button.right{background:var(--green-bg); border-color:var(--green); color:var(--green);}
+  .pad button.wrongtap{background:var(--red-bg); border-color:var(--red); color:var(--red);}
+  .pad button.reveal{box-shadow:0 0 0 2.5px var(--green) inset; border-color:var(--green);}
+  .pad button.dim{opacity:.4;}
+  .pad-label{grid-column:1/-1; font-size:12px; letter-spacing:.12em; color:var(--ink-soft); margin:6px 0 -2px; text-align:left;}
+
+  /* write pad */
+  .paper-wrap{width:100%; max-width:320px; margin-top:12px; border:1.5px solid var(--line); border-radius:16px; overflow:hidden; background-color:#fffefb;
+    background-image:linear-gradient(to right,transparent calc(50% - .5px),#e8e0d0 calc(50% - .5px),#e8e0d0 calc(50% + .5px),transparent calc(50% + .5px)),
+                     linear-gradient(to bottom,transparent calc(50% - .5px),#e8e0d0 calc(50% - .5px),#e8e0d0 calc(50% + .5px),transparent calc(50% + .5px));}
+  #paper{display:block; width:100%; aspect-ratio:1/1; touch-action:none; cursor:crosshair;}
+  .writebar{width:100%; max-width:320px; display:flex; gap:8px; margin-top:12px;}
+  .mini{border:1px solid var(--line); background:var(--card); color:var(--ink-soft); font-family:inherit;
+    font-size:14px; padding:11px 14px; border-radius:12px; cursor:pointer; transition:.18s;}
+  .mini:hover{color:var(--vermilion); border-color:#e2c5bc;}
+  #revealBtn{flex:1; min-height:46px;}
+  .reveal{width:100%; text-align:center; font-size:14px; color:var(--ink-soft); margin-top:12px; display:none;}
+  .reveal.show{display:block;}
+  .reveal b{font-family:"Noto Serif JP",serif; font-size:32px; color:var(--ink); margin:0 6px;}
+  .scorebar{width:100%; max-width:320px; display:none; gap:8px; margin-top:10px;}
+  .scorebar.show{display:flex;}
+  .score{flex:1; border-radius:13px; padding:13px 0; font-family:inherit; font-size:16px; font-weight:700; cursor:pointer;}
+  .score.ok{background:var(--green-bg); color:var(--green); border:1.5px solid var(--green);}
+  .score.no{background:var(--red-bg); color:var(--red); border:1.5px solid var(--red);}
+
+  .cands{width:100%; max-width:320px; display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;
+    align-items:center; justify-content:center; min-height:0;}
+  .cands .lbl{font-size:11px; color:#b6ac99; letter-spacing:.12em; margin-right:2px;}
+  .cands .hint{font-size:12px; color:var(--ink-soft); text-align:center;}
+  .cand{border:1.5px solid var(--line); background:#fffefb; border-radius:11px; min-width:46px; height:46px;
+    font-family:"Noto Serif JP",serif; font-size:21px; font-weight:700; color:var(--ink); cursor:pointer;
+    padding:0 9px; transition:.13s;}
+  .cand:hover{border-color:var(--indigo);}
+  .cand:active{transform:scale(.94);}
+  .cand.right{border-color:var(--green); color:var(--green); background:var(--green-bg);}
+  .cand.wrongtap{border-color:var(--red); color:var(--red); background:var(--red-bg);}
+
+  .feedback{width:100%; margin-top:14px; min-height:40px; display:flex; align-items:center; justify-content:center;
+    gap:9px; font-size:15px; font-weight:600; text-align:center; flex-wrap:wrap;
+    opacity:0; transition:opacity .2s;}
+  .feedback.show{opacity:1;}
+  .feedback .dot{width:9px;height:9px;border-radius:50%;}
+  .feedback.ok{color:var(--green);} .feedback.ok .dot{background:var(--green);}
+  .feedback.no{color:var(--red);} .feedback.no .dot{background:var(--red);}
+  .feedback .answer-txt{font-weight:700; letter-spacing:.05em; font-family:"Noto Serif JP",serif; font-size:18px;}
+  .feedback .alt{color:var(--ink-soft); font-weight:400; font-size:13px;}
+  .speak{border:1px solid var(--line); background:var(--card); border-radius:9px; width:34px;height:34px;
+    display:grid;place-items:center; cursor:pointer; color:var(--indigo); font-size:15px;}
+  .speak svg{width:17px; height:17px; display:block;}
+  .speak.slow{font-size:12px; font-weight:700; font-family:inherit; letter-spacing:.02em;}
+
+  .slowbtn{border:1px solid var(--line); background:var(--card); color:var(--ink-soft); font-family:inherit;
+    font-size:12px; font-weight:600; padding:5px 11px; border-radius:999px; cursor:pointer;
+    transition:.18s; white-space:nowrap; margin-left:auto;}
+  .slowbtn.on{background:var(--indigo); border-color:var(--indigo); color:#fff; box-shadow:0 3px 10px rgba(44,62,107,.20);}
+
+  .voicerow{display:flex; align-items:center; gap:6px; padding:0 4px; flex-wrap:wrap; row-gap:6px;}
+  #romajiBtn{margin-left:0;}
+  .ghostbtn{border:1px solid var(--line); background:transparent; color:#b6ac99; font-family:inherit;
+    font-size:11.5px; font-weight:600; padding:4px 10px; border-radius:999px; cursor:pointer; margin-left:6px;
+    transition:.18s; vertical-align:middle;}
+  .ghostbtn.on{background:var(--green-bg); border-color:var(--green); color:var(--green);}
+  .voicerow .vl{font-size:11px; color:#b6ac99; letter-spacing:.14em; margin-right:2px;}
+  .vbtn{border:1px solid var(--line); background:transparent; color:var(--ink-soft); font-family:inherit;
+    font-size:12px; font-weight:500; padding:5px 11px; border-radius:999px; cursor:pointer; transition:.18s;}
+  .vbtn.active{background:var(--indigo); border-color:var(--indigo); color:#fff; font-weight:700;}
+
+  .stats{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; background:var(--card);
+    border-radius:18px; padding:14px 8px; box-shadow:0 4px 18px rgba(60,48,28,.06); border:1px solid #f2ebdd;}
+  .stat{display:flex; flex-direction:column; align-items:center; gap:3px; position:relative;}
+  .stat + .stat::before{content:""; position:absolute; left:0; top:14%; height:72%; width:1px; background:var(--line);}
+  .stat .n{font-size:22px; font-weight:700; color:var(--indigo); font-variant-numeric:tabular-nums; line-height:1;}
+  .stat .n.g{color:var(--green);} .stat .n.r{color:var(--red);} .stat .n.v{color:var(--vermilion);}
+  .stat .l{font-size:11px; color:var(--ink-soft); letter-spacing:.04em;}
+
+  footer{text-align:center; font-size:11.5px; color:#b6ac99; padding-top:2px; letter-spacing:.03em;}
+
+  @media (max-width:400px){
+    .kana{font-size:118px; min-height:128px;}
+    .btn-main{padding:0 18px; font-size:15px;}
+    .brand .jp{font-size:19px;}
+    .pad{grid-template-columns:repeat(5,1fr); gap:7px;}
+    .pad button{font-size:21px;}
+    .listen-prompt{width:120px;height:120px;}
+    .listen-prompt .ico{font-size:50px;}
+    .mode button{font-size:12px; padding:10px 3px;}
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand"><span class="jp">五十音</span><span class="sub">Kana Dojo</span></div>
+      <button class="reset" id="resetBtn" title="重設統計">↺ 重設</button>
+    </header>
+
+    <div class="mode" id="modeSeg">
+      <button data-mode="read" class="active">睇字 → 寫拼音</button>
+      <button data-mode="listen">聽聲 → 寫假名</button>
+      <button data-mode="write">聽聲 → 手寫</button>
+    </div>
+
+    <div class="modebar">
+      <div class="seg" id="scopeSeg">
+        <button data-scope="hira" class="active">平假名</button>
+        <button data-scope="kata">片假名</button>
+        <button data-scope="both">全部</button>
+      </div>
+    </div>
+
+    <div class="voicerow">
+      <span class="vl">語音</span>
+      <button class="vbtn" data-voice="g">Google</button>
+      <button class="vbtn" data-voice="n">Nanami</button>
+      <button class="vbtn" data-voice="sys">系統</button>
+      <button class="slowbtn" id="slowBtn" title="慢速讀音">慢讀</button>
+      <button class="slowbtn" id="romajiBtn" title="喺喇叭下面顯示拼音">拼音</button>
+    </div>
+
+    <div class="card">
+      <!-- READ PANEL -->
+      <div class="panel active" id="readPanel">
+        <div class="type-label" id="typeLabel">ひらがな</div>
+        <div class="kana" id="kana">あ</div>
+        <div class="input-row">
+          <input id="answer" type="text" inputmode="text" autocomplete="off" autocapitalize="none"
+                 autocorrect="off" spellcheck="false" placeholder="輸入羅馬字拼音…">
+          <button class="btn-main" id="checkBtn">檢查</button>
+        </div>
+        <div class="feedback" id="fbRead"></div>
+      </div>
+
+      <!-- LISTEN PANEL -->
+      <div class="panel" id="listenPanel">
+        <div class="prompt-wrap">
+          <button class="listen-prompt" id="listenPrompt" title="撳再聽一次"><span class="ico"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4.03v8.05A4.5 4.5 0 0 0 16.5 12zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg></span></button>
+          <div class="prompt-romaji" id="listenRomaji"></div>
+          <div class="prompt-hint">聽發音 → 揀返正確嘅<b>假名</b></div>
+        </div>
+        <div class="pad" id="pad"></div>
+        <div class="feedback" id="fbListen"></div>
+      </div>
+
+      <!-- WRITE PANEL -->
+      <div class="panel" id="writePanel">
+        <div class="prompt-wrap">
+          <button class="listen-prompt" id="writePrompt" title="撳再聽一次"><span class="ico"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4.03v8.05A4.5 4.5 0 0 0 16.5 12zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg></span></button>
+          <div class="prompt-romaji" id="writeRomaji"></div>
+          <div class="prompt-hint">聽發音 → <b>手寫</b>落格 <button class="ghostbtn" id="recogBtn">認字</button></div>
+        </div>
+        <div class="paper-wrap"><canvas id="paper"></canvas></div>
+        <div class="cands" id="cands"></div>
+        <div class="writebar">
+          <button class="mini" id="undoBtn">撤銷</button>
+          <button class="mini" id="clearBtn">清除</button>
+          <button class="btn-main" id="revealBtn">睇答案</button>
+        </div>
+        <div class="reveal" id="reveal"></div>
+        <div class="scorebar" id="scorebar">
+          <button class="score ok" id="okBtn">✓ 啱</button>
+          <button class="score no" id="noBtn">✗ 錯</button>
+        </div>
+        <div class="feedback" id="fbWrite"></div>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><span class="n v" id="statStreak">0</span><span class="l">連對</span></div>
+      <div class="stat"><span class="n g" id="statCorrect">0</span><span class="l">答對</span></div>
+      <div class="stat"><span class="n r" id="statWrong">0</span><span class="l">答錯</span></div>
+      <div class="stat"><span class="n" id="statAcc">—</span><span class="l">正確率</span></div>
+    </div>
+
+    <footer>語音 Google／Nanami · 手寫認字：本地筆順比對（模板 KanjiVG, CC BY-SA）</footer>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ── 50音資料 ──────────────────────────────────────────────
+  const HIRA = [
+    ['あ','a'],['い','i'],['う','u'],['え','e'],['お','o'],
+    ['か','ka'],['き','ki'],['く','ku'],['け','ke'],['こ','ko'],
+    ['さ','sa'],['し','shi','si'],['す','su'],['せ','se'],['そ','so'],
+    ['た','ta'],['ち','chi','ti'],['つ','tsu','tu'],['て','te'],['と','to'],
+    ['な','na'],['に','ni'],['ぬ','nu'],['ね','ne'],['の','no'],
+    ['は','ha'],['ひ','hi'],['ふ','fu','hu'],['へ','he'],['ほ','ho'],
+    ['ま','ma'],['み','mi'],['む','mu'],['め','me'],['も','mo'],
+    ['や','ya'],['ゆ','yu'],['よ','yo'],
+    ['ら','ra'],['り','ri'],['る','ru'],['れ','re'],['ろ','ro'],
+    ['わ','wa'],['を','wo','o'],['ん','n','nn']
+  ];
+  const KATA = [
+    ['ア','a'],['イ','i'],['ウ','u'],['エ','e'],['オ','o'],
+    ['カ','ka'],['キ','ki'],['ク','ku'],['ケ','ke'],['コ','ko'],
+    ['サ','sa'],['シ','shi','si'],['ス','su'],['セ','se'],['ソ','so'],
+    ['タ','ta'],['チ','chi','ti'],['ツ','tsu','tu'],['テ','te'],['ト','to'],
+    ['ナ','na'],['ニ','ni'],['ヌ','nu'],['ネ','ne'],['ノ','no'],
+    ['ハ','ha'],['ヒ','hi'],['フ','fu','hu'],['ヘ','he'],['ホ','ho'],
+    ['マ','ma'],['ミ','mi'],['ム','mu'],['メ','me'],['モ','mo'],
+    ['ヤ','ya'],['ユ','yu'],['ヨ','yo'],
+    ['ラ','ra'],['リ','ri'],['ル','ru'],['レ','re'],['ロ','ro'],
+    ['ワ','wa'],['ヲ','wo','o'],['ン','n','nn']
+  ];
+  const packHira = HIRA.map(([k,...r])=>({k,r,type:'hira'}));
+  const packKata = KATA.map(([k,...r])=>({k,r,type:'kata'}));
+
+  // kana -> 標準讀音（用嚟核對聽聲模式）
+  const ROMAJI = {};
+  packHira.concat(packKata).forEach(o=>{ ROMAJI[o.k] = o.r[0]; });
+
+  const SPEAK_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4.03v8.05A4.5 4.5 0 0 0 16.5 12zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>';
+
+  // ── 元素 ──────────────────────────────────────────────────
+  const $ = id => document.getElementById(id);
+  const modeSeg=$('modeSeg'), scopeSeg=$('scopeSeg');
+  const readPanel=$('readPanel'), listenPanel=$('listenPanel');
+  const kanaEl=$('kana'), typeEl=$('typeLabel'), inputEl=$('answer'), checkBtn=$('checkBtn'), fbRead=$('fbRead');
+  const padEl=$('pad'), listenPrompt=$('listenPrompt'), fbListen=$('fbListen');
+  const listenRomaji=$('listenRomaji'), writeRomaji=$('writeRomaji');
+  const writePanel=$('writePanel'), writePrompt=$('writePrompt'), fbWrite=$('fbWrite');
+  const paper=$('paper'), revealEl=$('reveal'), scorebar=$('scorebar'), revealBtn=$('revealBtn');
+  const candsEl=$('cands');
+  const writebarEl=document.querySelector('.writebar');
+
+  // ── 狀態 ──────────────────────────────────────────────────
+  let mode = localStorage.getItem('kanaMode') || 'read';   // 'read' | 'listen'
+  let scope = localStorage.getItem('kanaScope') || 'hira';
+  let pool = [], current = null, answered = false, lastK = null;
+  let stats = {correct:0, wrong:0, streak:0};
+  let padButtons = [];
+  let revealed=false, strokes=[], curStroke=null, drawing=false, ctx=null;
+  let inkT0=0, recogTimer=null, recogSeq=0, cands=[];
+  let autoRecog = localStorage.getItem('kanaRecog') !== '0';
+
+  // ── 工具 ──────────────────────────────────────────────────
+  const norm = s => (s||'').toLowerCase().replace(/[\s\-'’丶]/g,'').trim();
+  const toHira = s => (s||'').replace(/[\u30a1-\u30f6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+
+  function buildPool(){
+    if(scope==='hira') pool = packHira.slice();
+    else if(scope==='kata') pool = packKata.slice();
+    else pool = packHira.concat(packKata);
+  }
+  function pickNext(){
+    let c;
+    if(pool.length===1) c=pool[0];
+    else { do{ c=pool[(Math.random()*pool.length)|0]; } while(c.k===lastK); }
+    lastK=c.k; return c;
+  }
+
+  function renderRomaji(){
+    const html = current
+      ? current.r[0] + (current.r.length > 1
+          ? '<span class="alt">'+current.r.slice(1).join(' / ')+'</span>' : '')
+      : '';
+    [listenRomaji, writeRomaji].forEach(el=>{
+      el.innerHTML = html;
+      el.classList.toggle('on', romajiHint);
+    });
+  }
+
+  // ── 語音：優先用內建高質錄音，載入唔到先用瀏覽器 TTS ──────
+  const player = new Audio();
+  player.preload = 'auto';
+  const SILENT = 'data:audio/wav;base64,UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==';
+  let audioOk = true, unlocked = false;
+  let slowMode = localStorage.getItem('kanaSlow') === '1';
+  let romajiHint = localStorage.getItem('kanaRomaji') === '1';
+  let voiceMode = localStorage.getItem('kanaVoice') || 'g';   // 'g' | 'n' | 'sys'
+  const VOICE_DIR = { g:'audio/g/', n:'audio/n/' };
+
+  function ttsFallback(kana){
+    if(!('speechSynthesis' in window)) return;
+    try{
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(kana);
+      u.lang='ja-JP'; u.rate=(slowMode?0.6:0.8); u.pitch=1;
+      const v = speechSynthesis.getVoices().find(x=>/ja|japan/i.test(x.lang));
+      if(v) u.voice=v;
+      window.speechSynthesis.speak(u);
+    }catch(e){}
+  }
+  function speak(kana, forceSlow){
+    const slow = forceSlow===undefined ? slowMode : !!forceSlow;
+    const rom = ROMAJI[kana];
+    if(!audioOk || !rom || voiceMode==='sys'){ ttsFallback(kana); return; }
+    try{ player.pause(); }catch(e){}
+    player.src = VOICE_DIR[voiceMode] + rom + '.mp3';
+    try{
+      player.preservesPitch = true;
+      player.mozPreservesPitch = true;
+      player.webkitPreservesPitch = true;
+    }catch(e){}
+    player.playbackRate = slow ? 0.7 : 1;
+    const p = player.play();
+    if(p && p.catch) p.catch(err=>{
+      const n = err && err.name;
+      if(n === 'AbortError') return;   // 被下一次播放打斷，屬正常
+      ttsFallback(kana);               // 真正播唔到先用 TTS
+    });
+  }
+  // 檔案載入失敗（404／斷網）→ 之後全部用 TTS
+  player.addEventListener('error', ()=>{ audioOk = false; });
+  // iOS/Safari：第一次用戶手勢要「解鎖」音效
+  function unlockAudio(){
+    if(unlocked) return; unlocked = true;
+    try{
+      const a = new Audio(SILENT);
+      a.muted = true;
+      const p = a.play();
+      const done = ()=>{ try{ a.pause(); }catch(e){} };
+      if(p && p.then) p.then(done).catch(()=>{});
+    }catch(e){}
+  }
+  document.addEventListener('pointerdown', unlockAudio, {once:true, passive:true});
+  document.addEventListener('keydown', unlockAudio, {once:true});
+  function playPrompt(){
+    if(!current || mode==='read') return;
+    const btn = mode==='write' ? writePrompt : listenPrompt;
+    btn.classList.remove('playing'); void btn.offsetWidth; btn.classList.add('playing');
+    speak(current.k);
+  }
+
+  // ── 建立假名鍵盤 ──────────────────────────────────────────
+  function buildPad(){
+    padEl.innerHTML=''; padButtons=[];
+    const groups=[];
+    if(scope==='hira'||scope==='both') groups.push(['ひらがな',packHira]);
+    if(scope==='kata'||scope==='both') groups.push(['カタカナ',packKata]);
+    groups.forEach(([label,arr])=>{
+      if(scope==='both'){
+        const l=document.createElement('div'); l.className='pad-label'; l.textContent=label; padEl.appendChild(l);
+      }
+      arr.forEach(o=>{
+        const b=document.createElement('button'); b.textContent=o.k; b.dataset.ch=o.k;
+        b.addEventListener('click',()=>checkListen(o.k));
+        padEl.appendChild(b); padButtons.push({el:b, ch:o.k});
+      });
+    });
+  }
+  function resetPad(){
+    padButtons.forEach(p=>{ p.el.disabled=false; p.el.className=''; });
+  }
+  function btnFor(ch){ return padButtons.find(p=>p.ch===ch); }
+
+  // ── 出題 ──────────────────────────────────────────────────
+  function clearFeedback(){
+    fbRead.className='feedback'; fbRead.innerHTML='';
+    fbListen.className='feedback'; fbListen.innerHTML='';
+    fbWrite.className='feedback'; fbWrite.innerHTML='';
+  }
+  function newQuestion(){
+    answered=false; current=pickNext(); clearFeedback(); renderRomaji();
+
+    if(mode==='read'){
+      readPanel.classList.add('active'); listenPanel.classList.remove('active');
+      kanaEl.textContent=current.k;
+      kanaEl.style.animation='none'; void kanaEl.offsetWidth; kanaEl.style.animation='';
+      typeEl.textContent = current.type==='hira'?'ひらがな':'カタカナ';
+      inputEl.value=''; inputEl.className=''; inputEl.disabled=false;
+      checkBtn.textContent='檢查'; checkBtn.classList.remove('next');
+      inputEl.focus({preventScroll:true});
+    }else if(mode==='listen'){
+      listenPanel.classList.add('active'); readPanel.classList.remove('active'); writePanel.classList.remove('active');
+      resetPad();
+      setTimeout(playPrompt, 120);
+    }else{
+      writePanel.classList.add('active'); readPanel.classList.remove('active'); listenPanel.classList.remove('active');
+      resetInk();
+      setTimeout(playPrompt, 120);
+    }
+  }
+
+  // ── 睇字模式：核對羅馬字 ──────────────────────────────────
+  function checkRead(){
+    if(answered) return;
+    const val=norm(inputEl.value);
+    if(!val){ inputEl.focus(); return; }
+    const ok = current.r.map(norm).includes(val);
+    answered=true; inputEl.disabled=true;
+
+    if(ok){
+      stats.correct++; stats.streak++;
+      inputEl.classList.add('correct');
+      showFeedback(fbRead, true, '答啱！', '');
+      updateStats();
+      setTimeout(()=>{ if(answered && inputEl.classList.contains('correct')) newQuestion(); }, 750);
+      checkBtn.textContent='下一題 →'; checkBtn.classList.add('next');
+    }else{
+      stats.wrong++; stats.streak=0;
+      inputEl.classList.add('wrong');
+      const primary=current.r[0], alts=current.r.slice(1);
+      let msg='正確答案：<span class="answer-txt">'+primary+'</span>';
+      if(alts.length) msg+=' <span class="alt">（亦可 '+alts.join(' / ')+'）</span>';
+      showFeedback(fbRead, false, '', msg, current.k);
+      updateStats();
+      checkBtn.textContent='下一題 →'; checkBtn.classList.add('next'); checkBtn.focus({preventScroll:true});
+    }
+  }
+
+  // ── 聽聲模式：核對假名 ────────────────────────────────────
+  function checkListen(tapped){
+    if(mode!=='listen') return;
+    if(answered){ newQuestion(); return; }   // second tap → next question
+    answered=true;
+    padButtons.forEach(p=>{ if(p.ch!==tapped && p.ch!==current.k) p.el.classList.add('dim'); });
+
+    const ok = ROMAJI[tapped] === current.r[0];
+    const tb = btnFor(tapped); if(tb) tb.el.classList.add(ok?'right':'wrongtap');
+
+    if(ok){
+      stats.correct++; stats.streak++;
+      showFeedback(fbListen, true, '答啱！', '');
+      updateStats();
+      setTimeout(()=>{ if(answered) newQuestion(); }, 850);
+    }else{
+      stats.wrong++; stats.streak=0;
+      const rb = btnFor(current.k); if(rb) rb.el.classList.add('reveal');
+      showFeedback(fbListen, false, '', '正確係 <span class="answer-txt">'+current.k+'</span> <span class="alt">· 撳下繼續</span>', current.k);
+      updateStats();
+    }
+  }
+
+  // ── 手寫模式：自己對答案 ──────────────────────────────────
+  function fitCanvas(){
+    const w = paper.getBoundingClientRect().width || 300;
+    const dpr = Math.min(window.devicePixelRatio||1, 2);
+    paper.width = Math.round(w*dpr); paper.height = Math.round(w*dpr);
+    ctx = paper.getContext('2d');
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.lineWidth=7; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.strokeStyle='#26221d';
+    redraw();
+  }
+  function redraw(){
+    if(!ctx) return;
+    const w = paper.getBoundingClientRect().width || 300;
+    ctx.clearRect(0,0,w,w);
+    strokes.forEach(s=>{
+      ctx.beginPath();
+      s.forEach((p,i)=> i ? ctx.lineTo(p[0],p[1]) : ctx.moveTo(p[0],p[1]));
+      if(s.length===1) ctx.lineTo(s[0][0]+.1, s[0][1]);
+      ctx.stroke();
+    });
+  }
+  function resetInk(){
+    strokes=[]; drawing=false; curStroke=null; revealed=false; inkT0=0;
+    clearTimeout(recogTimer); recogSeq++; cands=[];
+    candsEl.innerHTML='';
+    revealEl.className='reveal'; revealEl.innerHTML='';
+    scorebar.classList.remove('show');
+    writebarEl.style.display='';
+    fitCanvas();
+  }
+  function showAnswer(){
+    const alts=current.r.slice(1);
+    revealEl.innerHTML='正確答案：<b>'+current.k+'</b><span class="alt">'+current.r[0]+
+      (alts.length?' / '+alts.join(' / '):'')+'</span>';
+    revealEl.classList.add('show');
+  }
+  function doReveal(){
+    if(mode!=='write' || revealed || answered) return;
+    revealed=true;
+    recogSeq++; clearTimeout(recogTimer);
+    writebarEl.style.display='none';
+    candsEl.innerHTML='';
+    showAnswer();
+    scorebar.classList.add('show');
+    speak(current.k);
+  }
+  function scoreWrite(ok){
+    if(mode!=='write' || !revealed || answered) return;
+    answered=true;
+    if(ok){ stats.correct++; stats.streak++; showFeedback(fbWrite, true, '答啱！', '', current.k); }
+    else { stats.wrong++; stats.streak=0; showFeedback(fbWrite, false, '', '下一題再嚟 <span class="alt">· '+current.r[0]+'</span>', current.k); }
+    updateStats();
+    setTimeout(()=>{ if(answered) newQuestion(); }, 950);
+  }
+  // ── 手寫認字：本地筆順比對（KanjiVG 模板 + DTW）──────────
+  let TPL = null, TPL_N = 16;
+  const tplReady = fetch('kana-templates.json?v=2')
+    .then(r=>r.json())
+    .then(j=>{ TPL = j.tpl; TPL_N = j.n || 16; })
+    .catch(()=>{ TPL = null; });
+
+  function clearCands(msg){
+    candsEl.innerHTML = msg ? '<span class="hint">'+msg+'</span>' : '';
+  }
+  function scheduleRecog(){
+    clearTimeout(recogTimer);
+    if(answered || mode!=='write') return;
+    if(!autoRecog){ clearCands('自動認字已關 · 撳「睇答案」自己對'); return; }
+    recogTimer = setTimeout(recognize, 900);
+  }
+  // 等弧長重取樣成固定點數
+  function resampleN(pts, n){
+    if(pts.length < 2) return Array.from({length:n}, ()=>[pts[0][0], pts[0][1]]);
+    const d = [0];
+    for(let i=1;i<pts.length;i++) d.push(d[i-1] + Math.hypot(pts[i][0]-pts[i-1][0], pts[i][1]-pts[i-1][1]));
+    const total = d[d.length-1];
+    if(!total) return Array.from({length:n}, ()=>[pts[0][0], pts[0][1]]);
+    const out = [];
+    let j = 0;
+    for(let k=0;k<n;k++){
+      const tgt = total * k / (n-1);
+      while(j < d.length-2 && d[j+1] < tgt) j++;
+      const seg = d[j+1]-d[j];
+      const t = seg ? (tgt-d[j])/seg : 0;
+      out.push([pts[j][0] + (pts[j+1][0]-pts[j][0])*t,
+                pts[j][1] + (pts[j+1][1]-pts[j][1])*t]);
+    }
+    return out;
+  }
+  // 動態時間規整（banded）
+  function dtw(a, b, band){
+    const n = a.length, m = b.length;
+    const INF = 1e9;
+    const D = new Float64Array((n+1)*(m+1)).fill(INF);
+    const W = m+1;
+    D[0] = 0;
+    for(let i=1;i<=n;i++){
+      const lo = Math.max(1, i-(band+Math.abs(n-m)));
+      const hi = Math.min(m, i+(band+Math.abs(n-m)));
+      for(let j=lo;j<=hi;j++){
+        const cost = Math.hypot(a[i-1][0]-b[j-1][0], a[i-1][1]-b[j-1][1]);
+        const p = D[(i-1)*W+j], q = D[i*W+j-1], r = D[(i-1)*W+j-1];
+        D[i*W+j] = cost + Math.min(p, q, r);
+      }
+    }
+    return D[n*W+m] / Math.max(n, m);
+  }
+  function strokeDist(a, b){
+    const a2 = resampleN(a, TPL_N), b2 = resampleN(b, TPL_N);
+    const rev = b2.slice().reverse();
+    return Math.min(dtw(a2, b2, 3), dtw(a2, rev, 3));
+  }
+  function scoreKana(user, tpl){
+    const nu = user.length, nt = tpl.length;
+    const pen = Math.abs(nu-nt) * 0.45;
+    if(nu === nt){
+      let d = 0;
+      for(let i=0;i<nu;i++) d += strokeDist(user[i], tpl[i]);
+      return d/nu + pen;
+    }
+    let d = 0, cnt = 0, i = 0, j = 0;
+    while(i<nu && j<nt){
+      if(nu-i > nt-j) i++;
+      else if(nu-i < nt-j) j++;
+      else { d += strokeDist(user[i], tpl[j]); cnt++; i++; j++; }
+    }
+    return (cnt ? d/cnt : 3) + pen;
+  }
+  // 正規化成單位方格（保持長寬比、置中）
+  function normalizeInk(){
+    const flat = strokes.flat();
+    let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+    flat.forEach(p=>{
+      if(p[0]<minX) minX=p[0]; if(p[0]>maxX) maxX=p[0];
+      if(p[1]<minY) minY=p[1]; if(p[1]>maxY) maxY=p[1];
+    });
+    const side = Math.max(maxX-minX, maxY-minY, 1);
+    const cx = (minX+maxX)/2, cy = (minY+maxY)/2;
+    return strokes.map(s=>s.map(([x,y])=>[(x-cx)/side, (y-cy)/side]));
+  }
+  function localRank(){
+    if(!TPL) return [];
+    const un = normalizeInk();
+    const scored = [];
+    pool.forEach(o=>{
+      const t = TPL[o.k];
+      if(t) scored.push([scoreKana(un, t), o.k]);
+    });
+    scored.sort((a,b)=>a[0]-b[0]);
+    if(!scored.length) return [];
+    const best = scored[0][0];
+    if(best > 0.62) return [];                       // 差太遠 → 當認唔到
+    return scored.filter(x=>x[0] <= best*1.85 + 0.03).slice(0,6).map(x=>x[1]);
+  }
+  async function recognize(){
+    if(mode!=='write' || answered || !strokes.length) return;
+    const seq = ++recogSeq;
+    if(!TPL){ clearCands('認字載入中…'); return; }
+    clearCands('認字中…');
+    await new Promise(r=>requestAnimationFrame(r));
+    const list = localRank();
+    if(seq !== recogSeq || answered) return;
+    cands = list;
+    if(!cands.length){ clearCands('認唔到，再寫大啲／清楚啲？'); return; }
+    renderCands();
+  }
+  function renderCands(){
+    candsEl.innerHTML = '';
+    const lbl = document.createElement('span');
+    lbl.className='lbl'; lbl.textContent='認到';
+    candsEl.appendChild(lbl);
+    cands.slice(0,8).forEach(ch=>{
+      const b = document.createElement('button');
+      b.className='cand'; b.textContent=ch;
+      b.addEventListener('click', ()=>pickCand(ch, b));
+      candsEl.appendChild(b);
+    });
+  }
+  function pickCand(ch, btn){
+    if(mode!=='write' || answered) return;
+    clearTimeout(recogTimer); recogSeq++;
+    const ok = toHira(ch) === toHira(current.k);
+    if(ok){
+      answered = true;
+      btn.classList.add('right');
+      stats.correct++; stats.streak++;
+      showFeedback(fbWrite, true, '答啱！', '', current.k);
+      updateStats();
+      writebarEl.style.display='none';
+      showAnswer();
+      setTimeout(()=>{ if(answered) newQuestion(); }, 1150);
+      return;
+    }
+    // 認字唔準唔應該罰你 → 揭答案，交返你判
+    btn.classList.add('wrongtap');
+    revealed = true;
+    writebarEl.style.display='none';
+    showAnswer();
+    candsEl.querySelectorAll('.cand').forEach(b=>{ b.disabled=true; b.style.opacity='.55'; });
+    scorebar.classList.add('show');
+    showFeedback(fbWrite, false, '', '認到「'+ch+'」· 自己判：', current.k);
+  }
+
+  const inkPos = e => {
+    const r=paper.getBoundingClientRect();
+    return [e.clientX-r.left, e.clientY-r.top, Math.round(performance.now()-inkT0)];
+  };
+  paper.addEventListener('pointerdown', e=>{
+    if(mode!=='write' || answered) return;
+    e.preventDefault();
+    try{ paper.setPointerCapture(e.pointerId); }catch(_){}
+    if(!strokes.length) inkT0 = performance.now();
+    // 一落筆就收起舊候選，避免半個字嘅錯誤結果干擾
+    clearTimeout(recogTimer); recogSeq++; cands=[];
+    if(candsEl.childElementCount) clearCands('');
+    drawing=true; curStroke=[inkPos(e)]; strokes.push(curStroke); redraw();
+  });
+  paper.addEventListener('pointermove', e=>{
+    if(!drawing) return;
+    curStroke.push(inkPos(e)); redraw();
+  });
+  ['pointerup','pointercancel'].forEach(t=>paper.addEventListener(t, ()=>{
+    if(!drawing) return;
+    drawing=false; curStroke=null; scheduleRecog();
+  }));
+  window.addEventListener('resize', ()=>{ if(mode==='write') fitCanvas(); });
+
+  // ── 共用 feedback ─────────────────────────────────────────
+  function showFeedback(el, ok, head, detailHtml, speakKana){
+    el.className='feedback show '+(ok?'ok':'no');
+    el.innerHTML =
+      '<span class="dot"></span>' +
+      (head?'<span>'+head+'</span>':'') +
+      (detailHtml?'<span>'+detailHtml+'</span>':'') +
+      '<button class="speak" data-sp="1" title="聽讀音">'+SPEAK_SVG+'</button>' +
+      '<button class="speak slow" data-sp="2" title="慢速讀音">慢</button>';
+    el.querySelectorAll('.speak').forEach(b=>{
+      b.onclick = ()=> speak(speakKana||current.k, b.dataset.sp==='2');
+    });
+  }
+  function updateStats(){
+    $('statStreak').textContent=stats.streak;
+    $('statCorrect').textContent=stats.correct;
+    $('statWrong').textContent=stats.wrong;
+    const t=stats.correct+stats.wrong;
+    $('statAcc').textContent = t? Math.round(stats.correct/t*100)+'%':'—';
+  }
+
+  // ── 切換控制 ──────────────────────────────────────────────
+  function setMode(m){
+    mode=m; localStorage.setItem('kanaMode',m);
+    [...modeSeg.children].forEach(b=>b.classList.toggle('active', b.dataset.mode===m));
+    newQuestion();
+  }
+  function setScope(s){
+    scope=s; localStorage.setItem('kanaScope',s);
+    [...scopeSeg.children].forEach(b=>b.classList.toggle('active', b.dataset.scope===s));
+    buildPool(); buildPad(); newQuestion();
+  }
+
+  // ── 事件 ──────────────────────────────────────────────────
+  modeSeg.addEventListener('click', e=>{ const b=e.target.closest('button'); if(b) setMode(b.dataset.mode); });
+  scopeSeg.addEventListener('click', e=>{ const b=e.target.closest('button'); if(b) setScope(b.dataset.scope); });
+  checkBtn.addEventListener('click', ()=>{ if(answered) newQuestion(); else checkRead(); });
+  inputEl.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); if(answered) newQuestion(); else checkRead(); } });
+  listenPrompt.addEventListener('click', playPrompt);
+  writePrompt.addEventListener('click', playPrompt);
+  revealBtn.addEventListener('click', doReveal);
+  $('undoBtn').addEventListener('click', ()=>{
+    if(answered) return;
+    if(strokes.length){ strokes.pop(); redraw(); scheduleRecog(); }
+  });
+  $('clearBtn').addEventListener('click', ()=>{
+    if(answered) return;
+    strokes=[]; inkT0=0; cands=[]; clearCands(''); redraw();
+  });
+  $('okBtn').addEventListener('click', ()=>scoreWrite(true));
+  $('noBtn').addEventListener('click', ()=>scoreWrite(false));
+  document.addEventListener('keydown', e=>{
+    if(mode==='write' && e.key==='Enter' && !answered && !revealed){ e.preventDefault(); doReveal(); return; }
+    if(answered && e.key==='Enter'){ e.preventDefault(); newQuestion(); }
+  });
+  $('resetBtn').addEventListener('click', ()=>{
+    stats={correct:0,wrong:0,streak:0}; updateStats(); newQuestion();
+  });
+  const slowBtn = $('slowBtn');
+  function applySlow(){
+    slowBtn.classList.toggle('on', slowMode);
+    slowBtn.textContent = slowMode ? '慢讀 ✓' : '慢讀';
+  }
+  slowBtn.addEventListener('click', ()=>{
+    slowMode = !slowMode;
+    localStorage.setItem('kanaSlow', slowMode?'1':'0');
+    applySlow();
+    if(current) speak(current.k);
+  });
+
+  const romajiBtn = $('romajiBtn');
+  function applyRomaji(){
+    romajiBtn.classList.toggle('on', romajiHint);
+    romajiBtn.textContent = romajiHint ? '拼音 ✓' : '拼音';
+    renderRomaji();
+  }
+  romajiBtn.addEventListener('click', ()=>{
+    romajiHint = !romajiHint;
+    localStorage.setItem('kanaRomaji', romajiHint?'1':'0');
+    applyRomaji();
+  });
+
+  const recogBtn = $('recogBtn');
+  function applyRecog(){
+    recogBtn.classList.toggle('on', autoRecog);
+    recogBtn.textContent = autoRecog ? '認字 開' : '認字 關';
+  }
+  recogBtn.addEventListener('click', ()=>{
+    autoRecog = !autoRecog;
+    localStorage.setItem('kanaRecog', autoRecog?'1':'0');
+    applyRecog();
+    if(!autoRecog){ recogSeq++; clearTimeout(recogTimer); clearCands('自動認字已關 · 撳「睇答案」自己對'); }
+    else if(strokes.length) scheduleRecog();
+  });
+
+  const voiceBtns = [...document.querySelectorAll('.vbtn')];
+  function applyVoice(){
+    voiceBtns.forEach(b=>b.classList.toggle('active', b.dataset.voice===voiceMode));
+  }
+  voiceBtns.forEach(b=>b.addEventListener('click', ()=>{
+    voiceMode = b.dataset.voice;
+    localStorage.setItem('kanaVoice', voiceMode);
+    applyVoice();
+    if(current) speak(current.k);
+  }));
+
+  // ── 初始化 ────────────────────────────────────────────────
+  if(!['read','listen','write'].includes(mode)) mode='read';
+  if(!['hira','kata','both'].includes(scope)) scope='hira';
+  [...modeSeg.children].forEach(b=>b.classList.toggle('active', b.dataset.mode===mode));
+  [...scopeSeg.children].forEach(b=>b.classList.toggle('active', b.dataset.scope===scope));
+  if('speechSynthesis' in window){ speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged=()=>{}; }
+  buildPool(); buildPad(); updateStats(); newQuestion();
+  applySlow(); applyVoice(); applyRecog(); applyRomaji();
+
+  // ── Service Worker（網頁版離線用；app 內建資源時自動略過）─────
+  const isNativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  if('serviceWorker' in navigator && location.protocol.startsWith('http') && !isNativeApp){
+    window.addEventListener('load', ()=>{
+      navigator.serviceWorker.register('sw.js').catch(()=>{});
+    });
+  }
+})();
+</script>
+</body>
+</html>
