@@ -170,7 +170,9 @@
   .pad button.wrongtap{background:var(--red-bg); border-color:var(--red); color:var(--red);}
   .pad button.reveal{box-shadow:0 0 0 2.5px var(--green) inset; border-color:var(--green);}
   .pad button.dim{opacity:.4;}
+  .pad button.long{font-size:16.5px; letter-spacing:-.03em;}
   .pad-label{grid-column:1/-1; font-size:12px; letter-spacing:.12em; color:var(--ink-soft); margin:6px 0 -2px; text-align:left;}
+  .pad-sublabel{grid-column:1/-1; font-size:10.5px; letter-spacing:.14em; color:#b6ac99; margin:2px 0 -3px; text-align:left;}
 
   /* write pad */
   .paper-wrap{width:100%; max-width:320px; margin-top:12px; border:1.5px solid var(--line); border-radius:16px; overflow:hidden; background-color:#fffefb;
@@ -284,6 +286,13 @@
       <button class="vbtn" data-voice="n">Nanami</button>
       <button class="slowbtn" id="slowBtn" title="慢速讀音">慢讀</button>
       <button class="slowbtn" id="romajiBtn" title="喺喇叭下面顯示拼音">拼音</button>
+    </div>
+
+    <div class="voicerow">
+      <span class="vl" title="加入練習嘅字類">字類</span>
+      <button class="vbtn" data-extra="daku" title="が ざ だ ば 等">濁音</button>
+      <button class="vbtn" data-extra="hand" title="ぱ ぴ ぷ ぺ ぽ">半濁音</button>
+      <button class="vbtn" data-extra="youon" title="きゃ しゃ ちゃ 等">拗音</button>
     </div>
 
     <div class="card">
@@ -412,13 +421,64 @@
     ['ラ','ra'],['リ','ri'],['ル','ru'],['レ','re'],['ロ','ro'],
     ['ワ','wa'],['ヲ','wo','o'],['ン','n','nn']
   ];
-  const packHira = HIRA.map(([k,...r])=>({k,r,type:'hira'}));
-  const packKata = KATA.map(([k,...r])=>({k,r,type:'kata'}));
-  const ALL_KANA = new Map(packHira.concat(packKata).map(o=>[o.k,o]));
+  const packHira = HIRA.map(([k,...r])=>({k,r,type:'hira',cls:'basic'}));
+  const packKata = KATA.map(([k,...r])=>({k,r,type:'kata',cls:'basic'}));
+
+  // ── 濁音・半濁音・拗音（可選加入練習）──────────────────────
+  const DAKU_HIRA = [
+    ['が','ga'],['ぎ','gi'],['ぐ','gu'],['げ','ge'],['ご','go'],
+    ['ざ','za'],['じ','ji'],['ず','zu'],['ぜ','ze'],['ぞ','zo'],
+    ['だ','da'],['ぢ','di','ji'],['づ','du','zu'],['で','de'],['ど','do'],
+    ['ば','ba'],['び','bi'],['ぶ','bu'],['べ','be'],['ぼ','bo']
+  ];
+  const DAKU_KATA = [
+    ['ガ','ga'],['ギ','gi'],['グ','gu'],['ゲ','ge'],['ゴ','go'],
+    ['ザ','za'],['ジ','ji'],['ズ','zu'],['ゼ','ze'],['ゾ','zo'],
+    ['ダ','da'],['ヂ','di','ji'],['ヅ','du','zu'],['デ','de'],['ド','do'],
+    ['バ','ba'],['ビ','bi'],['ブ','bu'],['ベ','be'],['ボ','bo']
+  ];
+  const HAND_HIRA = [['ぱ','pa'],['ぴ','pi'],['ぷ','pu'],['ぺ','pe'],['ぽ','po']];
+  const HAND_KATA = [['パ','pa'],['ピ','pi'],['プ','pu'],['ペ','pe'],['ポ','po']];
+  const YOUON_HIRA = [
+    ['きゃ','kya'],['きゅ','kyu'],['きょ','kyo'],
+    ['しゃ','sha','sya'],['しゅ','shu','syu'],['しょ','sho','syo'],
+    ['ちゃ','cha','tya'],['ちゅ','chu','tyu'],['ちょ','cho','tyo'],
+    ['にゃ','nya'],['にゅ','nyu'],['にょ','nyo'],
+    ['ひゃ','hya'],['ひゅ','hyu'],['ひょ','hyo'],
+    ['みゃ','mya'],['みゅ','myu'],['みょ','myo'],
+    ['りゃ','rya'],['りゅ','ryu'],['りょ','ryo'],
+    ['ぎゃ','gya'],['ぎゅ','gyu'],['ぎょ','gyo'],
+    ['じゃ','ja','zya'],['じゅ','ju','zyu'],['じょ','jo','zyo'],
+    ['びゃ','bya'],['びゅ','byu'],['びょ','byo'],
+    ['ぴゃ','pya'],['ぴゅ','pyu'],['ぴょ','pyo']
+  ];
+  const YOUON_KATA = [
+    ['キャ','kya'],['キュ','kyu'],['キョ','kyo'],
+    ['シャ','sha','sya'],['シュ','shu','syu'],['ショ','sho','syo'],
+    ['チャ','cha','tya'],['チュ','chu','tyu'],['チョ','cho','tyo'],
+    ['ニャ','nya'],['ニュ','nyu'],['ニョ','nyo'],
+    ['ヒャ','hya'],['ヒュ','hyu'],['ヒョ','hyo'],
+    ['ミャ','mya'],['ミュ','myu'],['ミョ','myo'],
+    ['リャ','rya'],['リュ','ryu'],['リョ','ryo'],
+    ['ギャ','gya'],['ギュ','gyu'],['ギョ','gyo'],
+    ['ジャ','ja','zya'],['ジュ','ju','zyu'],['ジョ','jo','zyo'],
+    ['ビャ','bya'],['ビュ','byu'],['ビョ','byo'],
+    ['ピャ','pya'],['ピュ','pyu'],['ピョ','pyo']
+  ];
+  const packDakuHira = DAKU_HIRA.map(([k,...r])=>({k,r,type:'hira',cls:'daku'}));
+  const packDakuKata = DAKU_KATA.map(([k,...r])=>({k,r,type:'kata',cls:'daku'}));
+  const packHandHira = HAND_HIRA.map(([k,...r])=>({k,r,type:'hira',cls:'hand'}));
+  const packHandKata = HAND_KATA.map(([k,...r])=>({k,r,type:'kata',cls:'hand'}));
+  const packYouonHira = YOUON_HIRA.map(([k,...r])=>({k,r,type:'hira',cls:'youon'}));
+  const packYouonKata = YOUON_KATA.map(([k,...r])=>({k,r,type:'kata',cls:'youon'}));
+  const ALL_PACKS = [packHira,packKata,packDakuHira,packDakuKata,
+                     packHandHira,packHandKata,packYouonHira,packYouonKata];
+  const ALL_KANA = new Map(ALL_PACKS.flat().map(o=>[o.k,o]));
+  const EXTRA_LABEL = { daku:'濁音', hand:'半濁音', youon:'拗音' };
 
   // kana -> 標準讀音（用嚟核對聽聲模式）
   const ROMAJI = {};
-  packHira.concat(packKata).forEach(o=>{ ROMAJI[o.k] = o.r[0]; });
+  ALL_KANA.forEach(o=>{ ROMAJI[o.k] = o.r[0]; });
 
   const SPEAK_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4.03v8.05A4.5 4.5 0 0 0 16.5 12zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>';
 
@@ -445,6 +505,7 @@
   let wrongBook = loadWrongBook();   // 錯題簿：假名 key，唔會重覆
   let wrongSel = loadWrongSel();     // 邊啲字要練（null = 未設定過 → 全部）
   if(wrongSel === null) wrongSel = wrongBook.slice();
+  let extrasOn = loadExtras();       // 'daku' | 'hand' | 'youon' 邊類加練
   let pool = [], current = null, answered = false, lastK = null;
   let stats = {correct:0, wrong:0, streak:0};
   let padButtons = [];
@@ -491,6 +552,32 @@
     if(j>=0){ wrongSel.splice(j,1); saveWrongSel(); }
   }
   function practiceCount(){ return wrongBook.filter(k=>wrongSel.includes(k)).length; }
+
+  // ── 加練字類（濁音／半濁音／拗音）────────────────────────
+  function loadExtras(){
+    try{
+      const a = JSON.parse(localStorage.getItem('kanaExtras') || '[]');
+      return Array.isArray(a) ? a.filter(k=>k in EXTRA_LABEL) : [];
+    }catch(e){ return []; }
+  }
+  const hasExtra = c => extrasOn.indexOf(c) >= 0;
+  // 練習題庫用：按用戶揀嘅字類
+  function packsFor(type){
+    const out = [ type==='hira' ? packHira : packKata ];
+    if(hasExtra('daku'))  out.push(type==='hira' ? packDakuHira : packDakuKata);
+    if(hasExtra('hand'))  out.push(type==='hira' ? packHandHira : packHandKata);
+    if(hasExtra('youon')) out.push(type==='hira' ? packYouonHira : packYouonKata);
+    return out;
+  }
+  // 鍵盤用：加練字類之外，錯題簿入面有嘅字類都要出（否則答唔到）
+  function padPacksFor(type){
+    const inPool = new Set(pool.filter(o=>o.type===type).map(o=>o.cls));
+    const out = [ type==='hira' ? packHira : packKata ];
+    if(hasExtra('daku') || inPool.has('daku'))    out.push(type==='hira' ? packDakuHira : packDakuKata);
+    if(hasExtra('hand') || inPool.has('hand'))    out.push(type==='hira' ? packHandHira : packHandKata);
+    if(hasExtra('youon') || inPool.has('youon'))  out.push(type==='hira' ? packYouonHira : packYouonKata);
+    return out;
+  }
   function updateWrongBadge(){
     const n = wrongBook.length;
     wrongBadge.textContent = n;
@@ -499,10 +586,10 @@
   }
 
   function buildPool(){
-    if(scope==='hira') pool = packHira.slice();
-    else if(scope==='kata') pool = packKata.slice();
+    if(scope==='hira') pool = packsFor('hira').flat();
+    else if(scope==='kata') pool = packsFor('kata').flat();
     else if(scope==='wrong') pool = wrongBook.filter(k=>wrongSel.includes(k)).map(k=>ALL_KANA.get(k)).filter(Boolean);
-    else pool = packHira.concat(packKata);
+    else pool = packsFor('hira').flat().concat(packsFor('kata').flat());
   }
   function pickNext(){
     let c;
@@ -591,29 +678,36 @@
   function buildPad(){
     padEl.innerHTML=''; padButtons=[];
     const groups=[];
-    if(scope==='hira') groups.push(['ひらがな',packHira]);
-    else if(scope==='kata') groups.push(['カタカナ',packKata]);
+    if(scope==='hira') groups.push(['ひらがな', padPacksFor('hira')]);
+    else if(scope==='kata') groups.push(['カタカナ', padPacksFor('kata')]);
     else {
       // 隨機混合／錯題簿：有邊種字就出邊種鍵盤
       const hasH = scope==='both' || pool.some(o=>o.type==='hira');
       const hasK = scope==='both' || pool.some(o=>o.type==='kata');
-      if(hasH) groups.push(['ひらがな',packHira]);
-      if(hasK) groups.push(['カタカナ',packKata]);
+      if(hasH) groups.push(['ひらがな', padPacksFor('hira')]);
+      if(hasK) groups.push(['カタカナ', padPacksFor('kata')]);
     }
     const showLabel = groups.length > 1;
-    groups.forEach(([label,arr])=>{
+    groups.forEach(([label,packs])=>{
       if(showLabel){
         const l=document.createElement('div'); l.className='pad-label'; l.textContent=label; padEl.appendChild(l);
       }
-      arr.forEach(o=>{
-        const b=document.createElement('button'); b.textContent=o.k; b.dataset.ch=o.k;
-        b.addEventListener('click',()=>checkListen(o.k));
-        padEl.appendChild(b); padButtons.push({el:b, ch:o.k});
+      packs.forEach(arr=>{
+        if(arr[0] && arr[0].cls!=='basic'){
+          const s=document.createElement('div'); s.className='pad-sublabel';
+          s.textContent=EXTRA_LABEL[arr[0].cls]; padEl.appendChild(s);
+        }
+        arr.forEach(o=>{
+          const b=document.createElement('button'); b.textContent=o.k; b.dataset.ch=o.k;
+          if(o.k.length>1) b.classList.add('long');
+          b.addEventListener('click',()=>checkListen(o.k));
+          padEl.appendChild(b); padButtons.push({el:b, ch:o.k});
+        });
       });
     });
   }
   function resetPad(){
-    padButtons.forEach(p=>{ p.el.disabled=false; p.el.className=''; });
+    padButtons.forEach(p=>{ p.el.disabled=false; p.el.classList.remove('right','wrongtap','reveal','dim'); });
   }
   function btnFor(ch){ return padButtons.find(p=>p.ch===ch); }
 
@@ -888,6 +982,7 @@
     if(mode!=='write' || answered || !strokes.length) return;
     const seq = ++recogSeq;
     if(!TPL){ clearCands('認字載入中…'); return; }
+    if(!TPL[current.k]){ clearCands('呢個字未有筆順模板 · 撳「睇答案」自己對'); return; }
     clearCands('認字中…');
     await new Promise(r=>requestAnimationFrame(r));
     const list = localRank();
@@ -1066,7 +1161,7 @@
   }
   function renderAddPicker(){
     addGrid.innerHTML='';
-    packHira.concat(packKata).forEach(o=>{
+    ALL_KANA.forEach(o=>{
       if(wrongBook.includes(o.k)) return;
       const b=document.createElement('button');
       b.type='button'; b.dataset.k=o.k; b.textContent=o.k; b.title=o.r.join(' / ');
@@ -1164,7 +1259,7 @@
     else if(strokes.length) scheduleRecog();
   });
 
-  const voiceBtns = [...document.querySelectorAll('.vbtn')];
+  const voiceBtns = [...document.querySelectorAll('.vbtn[data-voice]')];
   function applyVoice(){
     voiceBtns.forEach(b=>b.classList.toggle('active', b.dataset.voice===voiceMode));
   }
@@ -1175,6 +1270,20 @@
     if(current) speak(current.k);
   }));
 
+  // 加練字類：濁音／半濁音／拗音
+  const extraBtns = [...document.querySelectorAll('[data-extra]')];
+  function applyExtras(){
+    extraBtns.forEach(b=>b.classList.toggle('active', hasExtra(b.dataset.extra)));
+  }
+  extraBtns.forEach(b=>b.addEventListener('click', ()=>{
+    const c=b.dataset.extra;
+    const i=extrasOn.indexOf(c);
+    if(i>=0) extrasOn.splice(i,1); else extrasOn.push(c);
+    try{ localStorage.setItem('kanaExtras', JSON.stringify(extrasOn)); }catch(e){}
+    applyExtras();
+    buildPool(); buildPad(); newQuestion();
+  }));
+
   // ── 初始化 ────────────────────────────────────────────────
   if(!['read','listen','write'].includes(mode)) mode='read';
   if(!['hira','kata','both','wrong'].includes(scope)) scope='hira';
@@ -1182,7 +1291,7 @@
   [...scopeSeg.children].forEach(b=>b.classList.toggle('active', b.dataset.scope===scope));
   if('speechSynthesis' in window){ speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged=()=>{}; }
   buildPool(); buildPad(); updateStats(); updateWrongBadge(); newQuestion();
-  applySlow(); applyVoice(); applyRecog(); applyRomaji();
+  applySlow(); applyVoice(); applyRecog(); applyRomaji(); applyExtras();
 
   // ── Service Worker（網頁版離線用；app 內建資源時自動略過）─────
   const isNativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
