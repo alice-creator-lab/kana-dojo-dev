@@ -46,6 +46,36 @@
   .reset:hover{color:var(--vermilion); border-color:#e2c5bc;}
   .hactions{display:flex; align-items:center; gap:8px;}
 
+  /* 假名表（溫習） */
+  .chart{position:fixed; inset:0; z-index:80; display:flex; align-items:center; justify-content:center; padding:14px;}
+  .chart[hidden]{display:none;}
+  .chart-bg{position:absolute; inset:0; background:rgba(38,34,29,.42);}
+  .chart-card{position:relative; width:min(560px,100%); max-height:86vh; background:var(--card);
+    border-radius:20px; box-shadow:0 24px 60px rgba(38,34,29,.3); display:flex; flex-direction:column; overflow:hidden;}
+  .chart-head{display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:13px 15px; border-bottom:1px solid var(--line);}
+  .chart-head h2{font-size:14.5px; letter-spacing:.1em; font-weight:700;}
+  .chart-head .sub{font-size:10.5px; color:#b6ac99; letter-spacing:.1em;}
+  .chart-close{border:1px solid var(--line); background:var(--card); color:var(--ink-soft); width:30px; height:30px;
+    border-radius:999px; cursor:pointer; font-size:14px; line-height:1;}
+  .chart-close:hover{color:var(--vermilion); border-color:#e2c5bc;}
+  .chart-body{overflow:auto; padding:12px 14px 18px; -webkit-overflow-scrolling:touch;}
+  .chart-sec{margin-top:14px;}
+  .chart-sec:first-child{margin-top:2px;}
+  .chart-sec h3{font-size:11px; letter-spacing:.14em; color:var(--ink-soft); text-transform:uppercase; margin:0 0 7px 2px;}
+  .kgrid{display:grid; gap:6px;}
+  .kgrid.c5{grid-template-columns:repeat(5,1fr);}
+  .kgrid.c3{grid-template-columns:repeat(3,1fr);}
+  .kcell{display:flex; flex-direction:column; align-items:center; gap:1px; padding:6px 2px 5px;
+    border:1px solid var(--line); border-radius:10px; background:#fffefb; cursor:pointer; font-family:inherit;
+    transition:.12s; touch-action:manipulation;}
+  .kcell:active,.kcell:focus-visible{border-color:var(--indigo);}
+  .kcell b{font-family:"Noto Serif JP",serif; font-size:19px; font-weight:700; line-height:1.15; color:var(--ink);}
+  .kcell i{font-style:normal; font-family:"Noto Serif JP",serif; font-size:12px; line-height:1.1; color:#9b9280;}
+  .kcell span{font-size:9px; color:#c0b7a6; letter-spacing:.05em;}
+  .kcell.blank{visibility:hidden;}
+  .kcell.playing{border-color:var(--indigo); background:#eef1f8;}
+
   .mode{display:flex; background:var(--indigo); border-radius:15px; padding:5px; gap:5px;}
   .mode button{flex:1; border:0; background:transparent; color:#c7d0e8; font-family:inherit;
     font-size:14px; font-weight:600; padding:11px 4px; border-radius:11px; cursor:pointer; transition:.18s; white-space:nowrap;}
@@ -300,8 +330,11 @@
 <body>
   <div class="app">
     <header>
-      <div class="brand"><span class="jp">五十音</span><span class="sub">Kana Dojo</span><span class="ver" id="verTag">v21</span></div>
+      <div class="brand"><span class="jp">五十音</span><span class="sub">Kana Dojo</span><span class="ver" id="verTag">v22</span></div>
       <div class="hactions">
+        <button class="iconbtn" id="chartBtn" title="假名表（溫習用）">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg>
+        </button>
         <button class="reset" id="resetBtn" title="重設統計">↺ 重設</button>
         <button class="iconbtn" id="muteBtn" aria-pressed="false" title="靜音">
           <svg class="ico-on" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4.03v8.05A4.5 4.5 0 0 0 16.5 12zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
@@ -448,6 +481,20 @@
     </div>
   </div>
 
+<div class="chart" id="chart" hidden>
+  <div class="chart-bg" id="chartBg"></div>
+  <div class="chart-card" role="dialog" aria-modal="true" aria-label="假名表">
+    <div class="chart-head">
+      <div>
+        <h2>五十音表</h2>
+        <div class="sub">上：ひらがな　下：カタカナ　撳字聽發音</div>
+      </div>
+      <button class="chart-close" id="chartClose" aria-label="閂">✕</button>
+    </div>
+    <div class="chart-body" id="chartBody"></div>
+  </div>
+</div>
+
 <script>
 (function(){
   "use strict";
@@ -547,7 +594,8 @@
 
   // kana -> 標準讀音（用嚟核對聽聲模式）
   const ROMAJI = {};
-  ALL_KANA.forEach(o=>{ ROMAJI[o.k] = o.r[0]; });
+  const BY_ROMAJI = {};
+  ALL_KANA.forEach(o=>{ ROMAJI[o.k] = o.r[0]; if(!BY_ROMAJI[o.r[0]]) BY_ROMAJI[o.r[0]] = o.k; });
 
   const SPEAK_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4.03v8.05A4.5 4.5 0 0 0 16.5 12zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>';
 
@@ -840,8 +888,7 @@
   // 隨機混合（或題庫本身兩種字都有）→ 出題要標明係平假名定片假名
   // 錯題簿裡面平／片假名混住，聽聲／手寫都睇唔到字形，所以一律標明
   function showTypeHint(){
-    if(scope==='wrong' || scope==='both') return true;
-    return pool.some(o=>o.type==='hira') && pool.some(o=>o.type==='kata');
+    return true;      // 每個模式、每個字庫範圍都標明 ひらがな／カタカナ
   }
   function newQuestion(silent){
     answered=false; clearFeedback();
@@ -1508,6 +1555,68 @@
 
   // ── Service Worker（網頁版離線用；app 內建資源時自動略過）─────
   const isNativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  // ── 假名表（溫習用）────────────────────────────────────
+  const chartEl=$('chart'), chartBody=$('chartBody'), chartBtn=$('chartBtn'), chartClose=$('chartClose'), chartBg=$('chartBg');
+  const toKata = s => (s||'').replace(/[\u3041-\u3096]/g, c=>String.fromCharCode(c.charCodeAt(0)+0x60));
+  const CHART_ROWS = [
+    ['a','i','u','e','o'], ['ka','ki','ku','ke','ko'], ['sa','shi','su','se','so'],
+    ['ta','chi','tsu','te','to'], ['na','ni','nu','ne','no'], ['ha','hi','fu','he','ho'],
+    ['ma','mi','mu','me','mo'], ['ya','','yu','','yo'], ['ra','ri','ru','re','ro'],
+    ['wa','','','','wo'], ['n','','','','']
+  ];
+  const CHART_DAKU = [
+    ['ga','gi','gu','ge','go'], ['za','ji','zu','ze','zo'], ['da','di','du','de','do'], ['ba','bi','bu','be','bo']
+  ];
+  const CHART_HAND = [['pa','pi','pu','pe','po']];
+  const CHART_YOUON = [
+    ['kya','kyu','kyo'], ['sha','shu','sho'], ['cha','chu','cho'], ['nya','nyu','nyo'],
+    ['hya','hyu','hyo'], ['mya','myu','myo'], ['rya','ryu','ryo'], ['gya','gyu','gyo'],
+    ['ja','ju','jo'], ['bya','byu','byo'], ['pya','pyu','pyo']
+  ];
+  function chartCell(rom){
+    if(!rom) return '<span class="kcell blank"></span>';
+    const k = BY_ROMAJI[rom];
+    if(!k) return '<span class="kcell blank"></span>';
+    return '<button class="kcell" data-k="'+k+'" type="button"><b>'+k+'</b><i>'+toKata(k)+'</i><span>'+rom+'</span></button>';
+  }
+  function chartSection(title, rows, cols){
+    let html = '<div class="chart-sec"><h3>'+title+'</h3><div class="kgrid c'+cols+'">';
+    rows.forEach(r=>{ r.forEach(rom=>{ html += chartCell(rom); }); });
+    html += '</div></div>';
+    return html;
+  }
+  let chartBuilt = false;
+  function buildChart(){
+    if(chartBuilt) return;
+    chartBuilt = true;
+    chartBody.innerHTML =
+      chartSection('清音', CHART_ROWS, 5) +
+      chartSection('濁音', CHART_DAKU, 5) +
+      chartSection('半濁音', CHART_HAND, 5) +
+      chartSection('拗音', CHART_YOUON, 3);
+  }
+  function openChart(){
+    buildChart();
+    chartEl.hidden = false;
+    document.body.style.overflow = 'hidden';
+  }
+  function closeChart(){
+    chartEl.hidden = true;
+    document.body.style.overflow = '';
+    chartBody.querySelectorAll('.kcell.playing').forEach(b=>b.classList.remove('playing'));
+  }
+  chartBtn.addEventListener('click', openChart);
+  chartClose.addEventListener('click', closeChart);
+  chartBg.addEventListener('click', closeChart);
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !chartEl.hidden) closeChart(); });
+  chartBody.addEventListener('click', e=>{
+    const c = e.target.closest('.kcell'); if(!c || !c.dataset.k) return;
+    chartBody.querySelectorAll('.kcell.playing').forEach(b=>b.classList.remove('playing'));
+    c.classList.add('playing');
+    setTimeout(()=>c.classList.remove('playing'), 500);
+    speak(c.dataset.k);
+  });
+
   if('serviceWorker' in navigator && location.protocol.startsWith('http') && !isNativeApp){
     window.addEventListener('load', async ()=>{
       const had = !!navigator.serviceWorker.controller;
