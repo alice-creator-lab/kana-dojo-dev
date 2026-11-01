@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">五十音 Kana</string>
+    <string name="title_activity_main">五十音 Kana</string>
+    <string name="package_name">com.sunhsieh.kanadojo</string>
+    <string name="custom_url_scheme">com.sunhsieh.kanadojo</string>
+</resources>

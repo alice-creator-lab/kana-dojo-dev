@@ -1,0 +1,20 @@
+{
+  "appId": "com.sunhsieh.kanadojo",
+  "appName": "Kana Dojo",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "backgroundColor": "#f4efe6",
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 500,
+      "backgroundColor": "#f4efe6",
+      "androidScaleType": "CENTER_CROP"
+    }
+  }
+}

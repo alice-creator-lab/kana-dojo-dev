@@ -1,0 +1,12 @@
+kana-dojo.html
+.DS_Store
+
+# Capacitor / Android 專案（源碼會 commit，但唔要 build 產物同簽名材料）
+app/node_modules/
+app/www/
+app/android/.gradle/
+app/android/build/
+app/android/app/build/
+app/android/local.properties
+app/keystore.properties
+app/keys/
