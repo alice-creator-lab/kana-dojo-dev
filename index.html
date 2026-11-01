@@ -189,6 +189,17 @@
   .marks button:disabled{opacity:.4; cursor:default;}
   #listenCheckBtn{padding:0 16px; min-height:42px; font-size:15px; flex:0 0 auto;}
   #listenCheckBtn:disabled{opacity:.45; box-shadow:none; cursor:default;}
+
+  /* 聽聲：答案／重讀／慢放 貼住檢查掣，唔使捲到鍵盤尾至見到 */
+  .listen-ctl{display:flex; align-items:center; gap:8px; margin-top:8px; width:100%; flex-wrap:wrap;}
+  .listen-ctl .feedback{margin-top:0; min-height:32px; flex:1 1 140px; justify-content:flex-start; text-align:left; gap:6px; font-size:14px;}
+  .listen-ctl .feedback .answer-txt{font-size:17px;}
+  .ctlbtn{border:1.5px solid var(--line); background:#fffefb; color:var(--ink-soft); font-family:inherit;
+    font-size:13.5px; font-weight:700; letter-spacing:.04em; padding:0 12px; min-height:34px; border-radius:11px;
+    cursor:pointer; transition:.13s; flex:0 0 auto;}
+  .ctlbtn:hover{border-color:var(--indigo); color:var(--indigo);}
+  .ctlbtn:active{transform:scale(.94);}
+  .ctlbtn.playing{border-color:var(--indigo); color:var(--indigo);}
   #writeNextBtn{width:100%; margin-top:12px; min-height:46px;}
 
   /* write pad */
@@ -338,9 +349,13 @@
           <span class="draft-kana empty" id="draftKana">—</span>
           <button class="btn-main" id="listenCheckBtn" disabled>檢查</button>
         </div>
+        <div class="listen-ctl">
+          <div class="feedback" id="fbListen"></div>
+          <button class="ctlbtn" id="replayBtn" title="再聽一次">重讀</button>
+          <button class="ctlbtn" id="slowListenBtn" title="慢速再聽">慢放</button>
+        </div>
         <div class="marks" id="marks" hidden></div>
         <div class="pad" id="pad"></div>
-        <div class="feedback" id="fbListen"></div>
       </div>
 
       <!-- WRITE PANEL -->
@@ -534,6 +549,7 @@
   const emptyTitle=$('emptyTitle'), emptySub=$('emptySub'), emptyBtn=$('emptyBtn');
   const writeNextBtn=$('writeNextBtn');
   const draftKana=$('draftKana'), marksEl=$('marks'), listenCheckBtn=$('listenCheckBtn');
+  const replayBtn=$('replayBtn'), slowListenBtn=$('slowListenBtn');
   const wrongBadge=$('wrongBadge'), manageWrongBtn=$('manageWrongBtn');
   const sheetEl=$('wrongSheet'), sheetList=$('sheetList'), sheetAdd=$('sheetAdd'), addGrid=$('addGrid');
   const startPracticeBtn=$('startPracticeBtn'), sheetSub=$('sheetSub'), addModeBtn=$('addModeBtn');
@@ -1172,15 +1188,21 @@
   // ── 共用 feedback ─────────────────────────────────────────
   function showFeedback(el, ok, head, detailHtml, speakKana){
     el.className='feedback show '+(ok?'ok':'no');
+    // 聽聲模式自己有「重讀／慢放」掣，唔需要 feedback 內置嘅喇叭掣
+    const withSpeak = el.id !== 'fbListen';
     el.innerHTML =
       '<span class="dot"></span>' +
       (head?'<span>'+head+'</span>':'') +
       (detailHtml?'<span>'+detailHtml+'</span>':'') +
-      '<button class="speak" data-sp="1" title="聽讀音">'+SPEAK_SVG+'</button>' +
-      '<button class="speak slow" data-sp="2" title="慢速讀音">慢</button>';
-    el.querySelectorAll('.speak').forEach(b=>{
-      b.onclick = ()=> speak(speakKana||current.k, b.dataset.sp==='2');
-    });
+      (withSpeak
+        ? '<button class="speak" data-sp="1" title="聽讀音">'+SPEAK_SVG+'</button>' +
+          '<button class="speak slow" data-sp="2" title="慢速讀音">慢</button>'
+        : '');
+    if(withSpeak){
+      el.querySelectorAll('.speak').forEach(b=>{
+        b.onclick = ()=> speak(speakKana||current.k, b.dataset.sp==='2');
+      });
+    }
   }
   function updateStats(){
     $('statStreak').textContent=stats.streak;
@@ -1213,6 +1235,8 @@
   });
   inputEl.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); if(answered) newQuestion(); else checkRead(); } });
   listenPrompt.addEventListener('click', playPrompt);
+  replayBtn.addEventListener('click', ()=>{ if(mode==='listen') playPrompt(); });
+  slowListenBtn.addEventListener('click', ()=>{ if(mode==='listen' && current) speak(current.k, true); });
   writePrompt.addEventListener('click', playPrompt);
   revealBtn.addEventListener('click', doReveal);
   $('undoBtn').addEventListener('click', ()=>{
