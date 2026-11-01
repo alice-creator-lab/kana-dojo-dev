@@ -58,8 +58,6 @@
   .badge{display:inline-block; min-width:17px; height:17px; line-height:17px; padding:0 5px; margin-left:4px;
     border-radius:999px; background:var(--vermilion); color:#fff; font-size:11px; font-weight:700; vertical-align:2px;}
   .badge[hidden]{display:none;}
-  #manageWrongBtn{margin-left:0; margin-right:2px; flex:0 0 auto; color:var(--ink-soft);
-    font-size:12px; padding:6px 10px; background:var(--card);}
 
   /* ── 錯題簿管理（底部 sheet）*/
   .sheet-wrap{position:fixed; inset:0; z-index:50;}
@@ -305,7 +303,6 @@
         <button data-scope="both">隨機混合</button>
         <button data-scope="wrong">錯題簿<span class="badge" id="wrongBadge" hidden>0</span></button>
       </div>
-      <button class="ghostbtn" id="manageWrongBtn" hidden title="睇／管理錯題簿">管理</button>
     </div>
 
     <div class="voicerow">
@@ -550,7 +547,7 @@
   const writeNextBtn=$('writeNextBtn');
   const draftKana=$('draftKana'), marksEl=$('marks'), listenCheckBtn=$('listenCheckBtn');
   const replayBtn=$('replayBtn'), slowListenBtn=$('slowListenBtn');
-  const wrongBadge=$('wrongBadge'), manageWrongBtn=$('manageWrongBtn');
+  const wrongBadge=$('wrongBadge');
   const sheetEl=$('wrongSheet'), sheetList=$('sheetList'), sheetAdd=$('sheetAdd'), addGrid=$('addGrid');
   const startPracticeBtn=$('startPracticeBtn'), sheetSub=$('sheetSub'), addModeBtn=$('addModeBtn');
 
@@ -630,7 +627,6 @@
     const n = wrongBook.length;
     wrongBadge.textContent = n;
     wrongBadge.hidden = n === 0;
-    manageWrongBtn.hidden = scope !== 'wrong';
   }
 
   function buildPool(){
@@ -813,6 +809,7 @@
     fbWrite.className='feedback'; fbWrite.innerHTML='';
   }
   const typeName = t => t==='hira' ? 'ひらがな' : 'カタカナ';
+  const MODE_LABEL = { read:'睇字寫拼音', listen:'聽聲揀假名', write:'聽聲手寫' };
   // 隨機混合（或題庫本身兩種字都有）→ 出題要標明係平假名定片假名
   function showTypeHint(){
     if(scope==='both') return true;
@@ -829,7 +826,7 @@
       emptyTitle.textContent = nothing ? '錯題簿暫時係空' : '未揀字練習';
       emptySub.textContent = nothing
         ? '答錯嘅字會自動記低（唔會重覆）；亦可以自己加入字。'
-        : '錯題簿有 ' + wrongBook.length + ' 個字，但一個都未 tick。撳「管理」揀返想練嘅字。';
+        : '錯題簿有 ' + wrongBook.length + ' 個字，但一個都未 tick。撳「管理錯題簿」揀返想練嘅字。';
       emptyBtn.textContent = nothing ? '去練習' : '管理錯題簿';
       emptyBtn.dataset.act = nothing ? 'practice' : 'manage';
       updateWrongBadge();
@@ -1222,6 +1219,13 @@
     scope=s; localStorage.setItem('kanaScope',s);
     [...scopeSeg.children].forEach(b=>b.classList.toggle('active', b.dataset.scope===s));
     buildPool(); buildPad(); updateWrongBadge(); newQuestion();
+    if(s==='wrong') openSheet();      // 錯題簿 = 直接入管理，揀完再開始練習
+  }
+  // 由 sheet「開始練習」入練習：唔好再彈返個 sheet
+  function startWrongPractice(){
+    scope='wrong'; localStorage.setItem('kanaScope','wrong');
+    [...scopeSeg.children].forEach(b=>b.classList.toggle('active', b.dataset.scope==='wrong'));
+    buildPool(); buildPad(); updateWrongBadge(); newQuestion();
   }
 
   // ── 事件 ──────────────────────────────────────────────────
@@ -1302,6 +1306,7 @@
       sheetList.appendChild(row);
     });
     const n=practiceCount();
+    sheetSub.textContent = wrongBook.length + ' 個字 · 已 tick ' + n + ' 個 · 用「' + MODE_LABEL[mode] + '」練';
     startPracticeBtn.textContent = n ? '開始練習（'+n+'）' : '開始練習';
     startPracticeBtn.disabled = !n;
   }
@@ -1315,7 +1320,6 @@
     });
   }
 
-  manageWrongBtn.addEventListener('click', openSheet);
   $('sheetClose').addEventListener('click', closeSheet);
   $('sheetBg').addEventListener('click', closeSheet);
   document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !sheetEl.hidden) closeSheet(); });
@@ -1362,7 +1366,7 @@
   startPracticeBtn.addEventListener('click', ()=>{
     if(!practiceCount()) return;
     closeSheet();
-    setScope('wrong');
+    startWrongPractice();
   });
   emptyBtn.addEventListener('click', ()=>{
     if(emptyBtn.dataset.act==='manage') openSheet();
@@ -1437,6 +1441,7 @@
   [...scopeSeg.children].forEach(b=>b.classList.toggle('active', b.dataset.scope===scope));
   if('speechSynthesis' in window){ speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged=()=>{}; }
   buildPool(); buildPad(); updateStats(); updateWrongBadge(); newQuestion();
+  if(scope==='wrong') openSheet();      // 錯題簿直接就係管理畫面
   applySlow(); applyVoice(); applyRecog(); applyRomaji(); applyExtras();
 
   // ── Service Worker（網頁版離線用；app 內建資源時自動略過）─────
