@@ -706,27 +706,16 @@
       window.speechSynthesis.speak(u);
     }catch(e){}
   }
-  function speak(kana, forceSlow){
-    if(muted) return;                       // 靜音：全站唔出聲
-    const slow = forceSlow===undefined ? slowMode : !!forceSlow;
-    const rom = ROMAJI[kana];
-    if(!audioOk || !rom){ ttsFallback(kana); return; }
+  function playElement(url, rate, kana){
     try{ player.pause(); }catch(e){}
-    player.src = VOICE_DIR[voiceMode] + rom + '.mp3';
+    player.src = url;
     try{
       player.preservesPitch = true;
       player.mozPreservesPitch = true;
       player.webkitPreservesPitch = true;
     }catch(e){}
-    player.playbackRate = slow ? 0.7 : 1;
-    if(gainNode){
-      // 有 gain graph 就用 gain（iOS 唯一可以改大細聲嘅方法）
-      try{ player.volume = 1; }catch(e){}
-      try{ gainNode.gain.value = volLevel; }catch(e){}
-      resumeCtx();
-    }else{
-      try{ player.volume = volLevel; }catch(e){}
-    }
+    player.playbackRate = rate;
+    try{ player.volume = 1; }catch(e){}
     const p = player.play();
     if(p && p.catch) p.catch(err=>{
       const n = err && err.name;
@@ -734,30 +723,67 @@
       ttsFallback(kana);               // 真正播唔到先用 TTS
     });
   }
+  function speak(kana, forceSlow){
+    if(muted) return;                       // 靜音：全站唔出聲
+    const slow = forceSlow===undefined ? slowMode : !!forceSlow;
+    const rom = ROMAJI[kana];
+    if(!audioOk || !rom){ ttsFallback(kana); return; }
+    stopBuffer();
+    const url = VOICE_DIR[voiceMode] + rom + '.mp3';
+    const rate = slow ? 0.7 : 1;
+    if(volLevel >= 0.999){ playElement(url, rate, kana); return; }   // 全音量：原本條路，最穩
+    playBuffered(url, rate).then(ok=>{ if(!ok) playElement(url, rate, kana); }).catch(()=>playElement(url, rate, kana));
+  }
   // 檔案載入失敗（404／斷網）→ 之後全部用 TTS
   player.addEventListener('error', ()=>{ audioOk = false; });
-  // ── 音量：經 Web Audio GainNode 出聲 ─────────────────────
-  // iOS/Safari 嘅 HTMLMediaElement.volume 係唯讀（改極都係 1），所以統一用 gain 控制
-  let audioCtx=null, gainNode=null, srcNode=null;
-  function ensureGraph(){
+  // ── 音量 ────────────────────────────────────────────────
+  // 100% 音量時照用原本嘅 <audio>（最穩、保音高、iOS 都順）；
+  // 要細聲先用 Web Audio 解碼 BufferSource + GainNode（iOS 上 element.volume 係唯讀）。
+  // 唔會再 createMediaElementSource：一旦接落 graph，iOS 換 src 會斷音／冇聲。
+  let audioCtx=null, gainNode=null, curSrc=null;
+  const bufCache = new Map();
+  function ensureCtx(){
     if(audioCtx) return !!gainNode;
     const AC = window.AudioContext || window.webkitAudioContext;
     if(!AC) return false;
     try{
       audioCtx = new AC();
-      srcNode = audioCtx.createMediaElementSource(player);
       gainNode = audioCtx.createGain();
-      gainNode.gain.value = (muted ? 0 : volLevel);
-      srcNode.connect(gainNode);
+      gainNode.gain.value = muted ? 0 : volLevel;
       gainNode.connect(audioCtx.destination);
       return true;
-    }catch(e){ audioCtx=null; gainNode=null; srcNode=null; return false; }
+    }catch(e){ audioCtx=null; gainNode=null; return false; }
   }
   function resumeCtx(){ try{ if(audioCtx && audioCtx.state==='suspended') audioCtx.resume(); }catch(e){} }
+  function stopBuffer(){
+    if(curSrc){ try{ curSrc.stop(); }catch(e){} curSrc=null; }
+  }
+  async function playBuffered(url, rate){
+    if(!ensureCtx()) return false;
+    let buf = bufCache.get(url);
+    if(!buf){
+      const res = await fetch(url, {cache:'force-cache'});
+      if(!res.ok) return false;
+      const ab = await res.arrayBuffer();
+      buf = await audioCtx.decodeAudioData(ab);
+      bufCache.set(url, buf);
+    }
+    stopBuffer();
+    try{ player.pause(); }catch(e){}
+    resumeCtx();
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = rate;
+    src.connect(gainNode);
+    gainNode.gain.value = muted ? 0 : volLevel;
+    src.start();
+    curSrc = src;
+    return true;
+  }
   // iOS/Safari：第一次用戶手勢要「解鎖」音效
   function unlockAudio(){
     if(unlocked) return; unlocked = true;
-    ensureGraph(); resumeCtx();
+    ensureCtx(); resumeCtx();
     try{
       const a = new Audio(SILENT);
       a.muted = true;
@@ -768,11 +794,11 @@
   }
   document.addEventListener('pointerdown', unlockAudio, {once:true, passive:true});
   document.addEventListener('keydown', unlockAudio, {once:true});
-  // AudioContext 可能因為自動播放政策／切換 app 而 suspended → 每次有互動都試 resume
+  // 切返前台／有互動時補 resume，避免 AudioContext 停咗變冇聲
   ['pointerdown','touchstart','click','keydown'].forEach(t=>
-    document.addEventListener(t, ()=>{ ensureGraph(); resumeCtx(); }, {passive:true}));
+    document.addEventListener(t, ()=>{ if(audioCtx) resumeCtx(); }, {passive:true}));
   document.addEventListener('visibilitychange', ()=>{
-    if(!document.hidden){ ensureGraph(); resumeCtx(); if(gainNode) gainNode.gain.value = muted?0:volLevel; }
+    if(!document.hidden && audioCtx){ resumeCtx(); if(gainNode) gainNode.gain.value = muted?0:volLevel; }
   });
   function playPrompt(){
     if(!current || mode==='read') return;
@@ -1462,11 +1488,8 @@
   const volRange=$('volRange'), volNum=$('volNum'), muteBtn=$('muteBtn');
   function applyVolume(){
     const eff = muted ? 0 : volLevel;
-    if(gainNode){
-      try{ player.volume = 1; gainNode.gain.value = eff; resumeCtx(); }catch(e){}
-    }else{
-      try{ player.volume = eff; }catch(e){}
-    }
+    if(gainNode){ try{ gainNode.gain.value = eff; }catch(e){} }
+    else { try{ player.volume = eff; }catch(e){} }
     volRange.value = Math.round(volLevel*100);
     volRange.disabled = muted;
     volNum.textContent = muted ? '靜音' : Math.round(volLevel*100)+'%';
@@ -1481,8 +1504,9 @@
     applyVolume();
   });
   window.__kanaAudio = ()=>({ vol:volLevel, muted, gain:gainNode?gainNode.gain.value:null,
-    ctx:audioCtx?audioCtx.state:null, elemVol:player.volume,
-    paused:player.paused, t:+player.currentTime.toFixed(2), src:(player.src||'').split('/').pop() });
+    ctx:audioCtx?audioCtx.state:null, elemVol:player.volume, buffered:!!curSrc,
+    paused:player.paused, t:+player.currentTime.toFixed(2), src:(player.src||'').split('/').pop(),
+    url:(player.src||'').split('/kana-dojo-dev/').pop() });
   muteBtn.addEventListener('click', ()=>{
     muted = !muted;
     try{ localStorage.setItem('kanaMute', muted?'1':'0'); }catch(e){}
