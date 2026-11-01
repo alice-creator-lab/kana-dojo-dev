@@ -230,6 +230,7 @@
   .cand:active{transform:scale(.94);}
   .cand.right{border-color:var(--green); color:var(--green); background:var(--green-bg);}
   .cand.wrongtap{border-color:var(--red); color:var(--red); background:var(--red-bg);}
+  .cand.sel{border-color:var(--indigo); color:var(--indigo); background:#eef1f8; box-shadow:0 0 0 2px rgba(44,62,107,.16);}
 
   .feedback{width:100%; margin-top:14px; min-height:40px; display:flex; align-items:center; justify-content:center;
     gap:9px; font-size:15px; font-weight:600; text-align:center; flex-wrap:wrap;
@@ -563,7 +564,7 @@
   let padButtons = [];
   let draft = '';                    // 聽聲模式：而家揀咗嘅字（未提交）
   let revealed=false, strokes=[], curStroke=null, drawing=false, ctx=null;
-  let inkT0=0, recogTimer=null, recogSeq=0, cands=[];
+  let inkT0=0, recogTimer=null, recogSeq=0, cands=[], pickedCand=null;
   let autoRecog = localStorage.getItem('kanaRecog') !== '0';
 
   // ── 工具 ──────────────────────────────────────────────────
@@ -937,13 +938,20 @@
   }
   function resetInk(){
     strokes=[]; drawing=false; curStroke=null; revealed=false; inkT0=0;
-    clearTimeout(recogTimer); recogSeq++; cands=[];
+    clearTimeout(recogTimer); recogSeq++; cands=[]; pickedCand=null;
     candsEl.innerHTML='';
     revealEl.className='reveal'; revealEl.innerHTML='';
     scorebar.classList.remove('show');
     writeNextBtn.hidden=true;
     writebarEl.style.display='';
+    revealBtn.textContent='睇答案'; revealBtn.className='btn-main';
     fitCanvas();
+  }
+  // 揀咗候選字 → 「睇答案」變「檢查」，撳一下直接判對錯
+  function resetPick(){
+    pickedCand=null;
+    candsEl.querySelectorAll('.cand.sel').forEach(b=>b.classList.remove('sel'));
+    revealBtn.textContent='睇答案'; revealBtn.className='btn-main';
   }
   function showAnswer(){
     const alts=current.r.slice(1);
@@ -1122,6 +1130,8 @@
   }
   function renderCands(){
     candsEl.innerHTML = '';
+    pickedCand = null;
+    revealBtn.textContent='睇答案'; revealBtn.className='btn-main';
     const lbl = document.createElement('span');
     lbl.className='lbl'; lbl.textContent = lastUnsure ? '唔確定，揀返啱嘅' : '認到';
     candsEl.appendChild(lbl);
@@ -1133,30 +1143,36 @@
     });
   }
   function pickCand(ch, btn){
-    if(mode!=='write' || answered) return;
-    clearTimeout(recogTimer); recogSeq++;
-    const ok = toHira(ch) === toHira(current.k);
+    if(mode!=='write' || answered || revealed) return;
+    clearTimeout(recogTimer); recogSeq++; cands=[];      // 揀咗就定案，唔好再自動翻新候選
+    pickedCand = ch;
+    candsEl.querySelectorAll('.cand').forEach(b=>b.classList.remove('sel'));
+    btn.classList.add('sel');
+    revealBtn.textContent='檢查'; revealBtn.className='btn-main';
+  }
+  // 撳「檢查」：直接用揀咗嘅候選字判答（唔使自己判）
+  function checkPicked(){
+    if(mode!=='write' || answered || !pickedCand) return;
+    const ok = toHira(pickedCand) === toHira(current.k);
+    answered = true;
+    recogSeq++; clearTimeout(recogTimer);
+    const sel = candsEl.querySelector('.cand.sel');
+    if(sel){ sel.classList.remove('sel'); sel.classList.add(ok?'right':'wrongtap'); }
+    candsEl.querySelectorAll('.cand').forEach(b=>{ b.disabled=true; });
     if(ok){
-      answered = true;
-      btn.classList.add('right');
       stats.correct++; stats.streak++;
       if(scope==='wrong') dropWrong(current);
-      showFeedback(fbWrite, true, '答啱！', '', current.k);
-      updateStats();
-      writebarEl.style.display='none';
-      showAnswer();
-      showWriteNext(true);
-      scorebar.classList.remove('show');
-      return;
+      showFeedback(fbWrite, true, '答啱！', scope==='wrong'?'<span class="alt">已移出錯題簿</span>':'', current.k);
+    }else{
+      stats.wrong++; stats.streak=0; addWrong(current);
+      showFeedback(fbWrite, false, '',
+        '你揀咗 '+pickedCand+' · 正確係 <span class="answer-txt">'+current.k+'</span>', current.k);
     }
-    // 認字唔準唔應該罰你 → 揭答案，交返你判
-    btn.classList.add('wrongtap');
-    revealed = true;
+    updateStats();
     writebarEl.style.display='none';
     showAnswer();
-    candsEl.querySelectorAll('.cand').forEach(b=>{ b.disabled=true; b.style.opacity='.55'; });
-    scorebar.classList.add('show');
-    showFeedback(fbWrite, false, '', '認到「'+ch+'」· 自己判：', current.k);
+    scorebar.classList.remove('show');
+    showWriteNext(ok);
   }
 
   const inkPos = e => {
@@ -1171,6 +1187,7 @@
     // 一落筆就收起舊候選，避免半個字嘅錯誤結果干擾
     clearTimeout(recogTimer); recogSeq++; cands=[];
     if(candsEl.childElementCount) clearCands('');
+    resetPick();
     drawing=true; curStroke=[inkPos(e)]; strokes.push(curStroke); redraw();
   });
   paper.addEventListener('pointermove', e=>{
@@ -1243,21 +1260,28 @@
   replayBtn.addEventListener('click', ()=>{ if(mode==='listen') playPrompt(); });
   slowListenBtn.addEventListener('click', ()=>{ if(mode==='listen' && current) speak(current.k, true); });
   writePrompt.addEventListener('click', playPrompt);
-  revealBtn.addEventListener('click', doReveal);
+  revealBtn.addEventListener('click', ()=>{
+    if(mode==='write' && pickedCand && !answered) checkPicked();
+    else doReveal();
+  });
   $('undoBtn').addEventListener('click', ()=>{
     if(answered) return;
-    if(strokes.length){ strokes.pop(); redraw(); scheduleRecog(); }
+    if(strokes.length){ strokes.pop(); redraw(); resetPick(); scheduleRecog(); }
   });
   $('clearBtn').addEventListener('click', ()=>{
     if(answered) return;
-    strokes=[]; inkT0=0; cands=[]; clearCands(''); redraw();
+    strokes=[]; inkT0=0; cands=[]; clearCands(''); resetPick(); redraw();
   });
   $('okBtn').addEventListener('click', ()=>scoreWrite(true));
   $('noBtn').addEventListener('click', ()=>scoreWrite(false));
   writeNextBtn.addEventListener('click', ()=>{ if(answered) newQuestion(); });
   document.addEventListener('keydown', e=>{
     if(!sheetEl.hidden) return;               // 管理 sheet 開住時唔好觸發練習快捷鍵
-    if(mode==='write' && e.key==='Enter' && !answered && !revealed){ e.preventDefault(); doReveal(); return; }
+    if(mode==='write' && e.key==='Enter' && !answered && !revealed){
+      e.preventDefault();
+      if(pickedCand) checkPicked(); else doReveal();
+      return;
+    }
     if(answered && e.key==='Enter'){ e.preventDefault(); newQuestion(); }
   });
   $('resetBtn').addEventListener('click', ()=>{
