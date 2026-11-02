@@ -346,7 +346,7 @@
 <body>
   <div class="app">
     <header>
-      <div class="brand"><span class="jp">五十音</span><span class="sub">Kana Dojo</span><span class="ver" id="verTag">v25</span></div>
+      <div class="brand"><span class="jp">五十音</span><span class="sub">Kana Dojo</span><span class="ver" id="verTag">v26</span></div>
       <div class="hactions">
         <button class="iconbtn" id="chartBtn" title="假名表（溫習用）">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg>
@@ -808,8 +808,16 @@
       ttsFallback(kana);               // 真正播不到先用 TTS
     });
   }
-  function speak(kana, forceSlow){
+  // 開住錯題簿管理清單／五十音表時，練習一律暫停（不出聲、不自動出題）
+  function overlayOpen(){ return !sheetEl.hidden || !chartEl.hidden; }
+  function stopAudioNow(){
+    try{ player.pause(); player.currentTime = 0; }catch(e){}
+    try{ if('speechSynthesis' in window) window.speechSynthesis.cancel(); }catch(e){}
+    document.querySelectorAll('.playing').forEach(el=>el.classList.remove('playing'));
+  }
+  function speak(kana, forceSlow, fromOverlay){
     if(muted) return;                       // 靜音：全站不出聲
+    if(!fromOverlay && overlayOpen()) return;   // 清單／假名表開住時，練習唔出聲
     const slow = forceSlow===undefined ? slowMode : !!forceSlow;
     const rom = ROMAJI[kana];
     if(!audioOk || !rom){ ttsFallback(kana); return; }
@@ -832,6 +840,7 @@
   document.addEventListener('keydown', unlockAudio, {once:true});
   function playPrompt(){
     if(!current || mode==='read') return;
+    if(overlayOpen()) return;               // 有覆蓋層：唔播提示音
     const btn = mode==='write' ? writePrompt : (mode==='speak' ? speakReplay : listenPrompt);
     btn.classList.remove('playing'); void btn.offsetWidth; btn.classList.add('playing');
     speak(current.k);
@@ -1128,7 +1137,7 @@
   }
   function scheduleRecog(){
     clearTimeout(recogTimer);
-    if(answered || mode!=='write') return;
+    if(answered || mode!=='write' || overlayOpen()) return;
     if(!autoRecog){ clearCands('自動辨識已關閉 · 按「看答案」自行核對'); return; }
     recogTimer = setTimeout(recognize, 900);
   }
@@ -1495,6 +1504,7 @@
   }
   function openSheet(){
     closeAddPicker();
+    stopAudioNow();                          // 入清單即停聲
     sheetEl.hidden=false;
     document.body.style.overflow='hidden';
     renderSheet();
@@ -1747,6 +1757,7 @@
       chartSection('拗音', CHART_YOUON, 3);
   }
   function openChart(){
+    stopAudioNow();                          // 入假名表即停聲
     buildChart();
     applyChartScript();
     chartEl.hidden = false;
@@ -1766,7 +1777,7 @@
     chartBody.querySelectorAll('.kcell.playing').forEach(b=>b.classList.remove('playing'));
     c.classList.add('playing');
     setTimeout(()=>c.classList.remove('playing'), 500);
-    speak(c.dataset.k);
+    speak(c.dataset.k, undefined, true);     // 假名表自己撳字可以有聲
   });
 
   if('serviceWorker' in navigator && location.protocol.startsWith('http') && !isNativeApp){
